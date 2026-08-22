@@ -13,7 +13,7 @@ export default function SetupPage({ searchParams }: { searchParams?: { error?: s
                 <li>Paste it into a new Supabase query and click <strong>Run</strong>.</li>
                 <li>Return here and click <strong>Create working demo meet</strong> on the dashboard.</li>
             </ol>
-            <a href="/" className="inline-block rounded-xl bg-slate-900 px-4 py-3 font-medium text-white">Back to dashboard</a>
+            <a href="/" className="inline-block rounded-xl bg-[#003296] px-4 py-3 font-medium text-white hover:bg-[#002878]">Back to dashboard</a>
         </div>
     )
 }

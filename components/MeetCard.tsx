@@ -1,6 +1,7 @@
 import React from 'react'
 
-export default function MeetCard({ meet }: { meet: { id: string; name: string; date: string | null; location: string | null; is_published?: boolean; payment_status?: string } }) {
+export default function MeetCard({ meet }: { meet: { id: string; name: string; date: string | null; location: string | null; is_published?: boolean; payment_status?: string; paid_until?: string | null } }) {
+    const paid = meet.payment_status === 'paid' && !!meet.paid_until && new Date(meet.paid_until) > new Date()
     return (
         <div className="p-4 bg-white rounded shadow-sm">
             <div className="flex items-start justify-between">
@@ -14,7 +15,8 @@ export default function MeetCard({ meet }: { meet: { id: string; name: string; d
                 <a href={`/portal/${meet.id}`} className="text-sm text-sky-600 hover:underline">
                     Live Portal
                 </a>
-                <a href={`/meets/${meet.id}`} className="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white">Manage Meet</a>
+                {!paid ? <a href={`/meets/${meet.id}/checkout`} className="rounded-lg bg-[#003296] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#002878]">Checkout</a> : null}
+                <a href={`/meets/${meet.id}`} className="rounded-lg bg-[#003296] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#002878]">Manage Meet</a>
             </div>
         </div>
     )

@@ -12,6 +12,8 @@ export const parsedRosterSchema = z.object({
             lastName: z.string().nullable().optional(),
             age: z.number().nullable().optional(),
             grade: z.string().nullable().optional(),
+            teamCode: z.string().nullable().optional(),
+            gender: z.string().nullable().optional(),
             events: z.array(
                 z.object({
                     name: z.string(),
@@ -48,12 +50,27 @@ const parseCsvFallback = (content: string): ParsedRoster => {
     }
 
     const swimmers: ParsedRoster['swimmers'] = []
+    const headers = rows[0].split(',').map((header) => header.trim().toLowerCase())
+    const column = (fields: string[], name: string, fallback: number) => {
+        const index = headers.indexOf(name)
+        return fields[index >= 0 ? index : fallback]?.trim() ?? ''
+    }
 
     rows.slice(1).forEach((row) => {
         const fields = normalizeCsvRow(row)
         if (!fields || fields.length < 4) return
 
-        const [firstName, lastName, eventName, seedTime, maybeCourse, maybeGrade, maybeAge] = fields
+        const swimmerName = column(fields, 'swimmer_name', 0)
+        const nameParts = swimmerName.split(/\s+/).filter(Boolean)
+        const firstName = column(fields, 'first_name', 0) || nameParts.shift() || ''
+        const lastName = column(fields, 'last_name', 1) || nameParts.join(' ')
+        const eventName = column(fields, 'event_name', 2)
+        const seedTime = column(fields, 'seed_time', 3)
+        const teamCode = column(fields, 'team_code', 1)
+        const gender = column(fields, 'gender', 3)
+        const maybeCourse = column(fields, 'course', 4)
+        const maybeAge = column(fields, 'age', 6)
+        const maybeGrade = column(fields, 'grade', 7)
         const normalizedFirstName = firstName || null
         const normalizedLastName = lastName || null
         const normalizedAge = maybeAge ? Number(maybeAge) : null
@@ -63,6 +80,8 @@ const parseCsvFallback = (content: string): ParsedRoster => {
             lastName: normalizedLastName,
             age: Number.isFinite(normalizedAge) ? normalizedAge : null,
             grade: maybeGrade || null,
+            teamCode: teamCode || null,
+            gender: gender || null,
             events: [
                 {
                     name: eventName || 'Unknown Event',
@@ -247,6 +266,8 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
                 event_id: eventInsert.data.id,
                 swimmer_id: swimmerInsert.data.id,
                 swimmer_name: `${firstName ?? ''} ${lastName ?? ''}`.trim() || 'Swimmer',
+                team_code: swimmer.teamCode ?? null,
+                gender: swimmer.gender ?? null,
                 seed_time: seedTime,
                 seed_time_seconds: seedSeconds,
                 seed_course: course,
@@ -281,7 +302,7 @@ export async function parseRosterAction(formData: FormData, meetId?: string): Pr
         content = await file.text()
     }
 
-    const parsed = await parseTextToRoster(content, fileName)
+    const parsed = fileName.toLowerCase().endsWith('.csv') ? parseCsvFallback(content) : await parseTextToRoster(content, fileName)
     if (meetId) {
         await persistParsedRosterToMeet(parsed, meetId)
     }

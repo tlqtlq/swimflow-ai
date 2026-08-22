@@ -1,19 +1,29 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseAdminClient } from '@/lib/supabase'
 import { getCheckoutPrice, getStripe } from '@/lib/stripe'
+import { getAppBaseUrl } from '@/lib/app-url'
 
 export async function POST(request: Request) {
     try {
-        const { meetId, planType, plan } = await request.json() as { meetId?: string; planType?: 'single' | 'annual'; plan?: 'meet' | 'single' | 'annual' }
+        const { meetId, planType, plan, testMode } = await request.json() as { meetId?: string; planType?: 'single' | 'annual'; plan?: 'meet' | 'single' | 'annual'; testMode?: boolean }
         const selectedPlan = planType ?? (plan === 'annual' ? 'annual' : 'single')
         if (!meetId || !['single', 'annual'].includes(selectedPlan)) return NextResponse.json({ message: 'meetId and a valid planType are required.' }, { status: 400 })
         const stripe = getStripe()
         const supabase = createSupabaseAdminClient()
-        if (!stripe || !supabase) return NextResponse.json({ message: 'Stripe or Supabase is not configured.' }, { status: 500 })
+        if (!supabase) return NextResponse.json({ message: 'Supabase is not configured.' }, { status: 500 })
 
         const { data: meet } = await (supabase.from('meets' as any) as any).select('id, name').eq('id', meetId).single()
         if (!meet) return NextResponse.json({ message: 'Meet not found.' }, { status: 404 })
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin
+        if (testMode) {
+            const paidUntil = new Date()
+            paidUntil.setFullYear(paidUntil.getFullYear() + (selectedPlan === 'annual' ? 1 : 0))
+            if (selectedPlan === 'single') paidUntil.setDate(paidUntil.getDate() + 30)
+            const { error } = await (supabase.from('meets' as any) as any).update({ payment_status: 'paid', is_published: true, status: 'published', paid_until: paidUntil.toISOString() }).eq('id', meetId)
+            if (error) return NextResponse.json({ message: error.message }, { status: 500 })
+            return NextResponse.json({ paid: true, redirectUrl: `/meets/${meetId}?payment=success` })
+        }
+        if (!stripe) return NextResponse.json({ message: 'Stripe is not configured.' }, { status: 500 })
+        const baseUrl = getAppBaseUrl() === 'http://localhost:3000' ? new URL(request.url).origin : getAppBaseUrl()
         const session = await stripe.checkout.sessions.create({
             mode: 'payment',
             line_items: [{ price_data: { currency: 'usd', product_data: { name: selectedPlan === 'annual' ? 'SwimFlow.ai annual pass' : `SwimFlow.ai meet pass: ${meet.name}` }, unit_amount: getCheckoutPrice(selectedPlan === 'annual' ? 'annual' : 'meet') }, quantity: 1 }],

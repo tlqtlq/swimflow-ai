@@ -17,7 +17,7 @@ export default function MeetPortalQr({ meetId, meetName }: { meetId: string; mee
                 <p className="text-sm font-semibold uppercase tracking-[0.14em] text-sky-600">Spectator access</p>
                 <h2 className="mt-1 text-xl font-semibold text-slate-900">{meetName}</h2>
                 <p className="mt-2 max-w-md text-sm text-slate-600">Post this QR code on deck so families can follow live heats and lane assignments.</p>
-                <button type="button" onClick={() => window.print()} className="no-print mt-4 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white">Print deck poster</button>
+                <button type="button" onClick={() => window.print()} className="no-print mt-4 rounded-lg bg-[#003296] px-3 py-2 text-sm font-medium text-white hover:bg-[#002878]">Print deck poster</button>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3"><QRCodeSVG value={portalUrl} size={156} includeMargin /></div>
         </div>

@@ -78,7 +78,7 @@ export default function RosterUploader({ meetId }: { meetId: string }) {
                 <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                    className="w-full rounded-xl bg-[#003296] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#002878] disabled:cursor-not-allowed disabled:bg-slate-400"
                 >
                     {isSubmitting ? 'Parsing roster…' : 'Parse roster'}
                 </button>
