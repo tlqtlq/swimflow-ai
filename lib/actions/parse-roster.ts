@@ -27,6 +27,14 @@ export const parsedRosterSchema = z.object({
 
 export type ParsedRoster = z.infer<typeof parsedRosterSchema>
 
+export type RosterImportResult = ParsedRoster & {
+    importSummary: {
+        attemptedRows: number
+        importedRows: number
+        failedRows: number
+    }
+}
+
 const FALLBACK_CSV_SCHEMA = {
     delimiter: ',',
 }
@@ -203,11 +211,14 @@ const parseSeedTimeSeconds = (seedTime: string | number | null | undefined) => {
     return parsedMinutes * 60 + parsedSeconds
 }
 
-export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: string): Promise<void> {
+export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: string) {
     const supabase = createSupabaseAdminClient()
     if (!supabase) {
-        return
+        throw new Error('Supabase is not configured.')
     }
+
+    let attemptedRows = 0
+    let importedRows = 0
 
     const { data: meet, error: meetError } = (await (supabase.from('meets' as any) as any)
         .select('id, organization_id')
@@ -217,7 +228,7 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
             error: { message: string } | null
         }
     if (meetError || !meet) {
-        return
+        throw new Error(meetError?.message ?? 'Meet not found.')
     }
 
     for (const swimmer of parsed.swimmers) {
@@ -243,6 +254,7 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
         }
 
         for (const eventEntry of swimmer.events ?? []) {
+            attemptedRows += 1
             const eventName = eventEntry.name?.trim() || 'Unknown Event'
             const course = eventEntry.course && ['SCY', 'LCM'].includes(eventEntry.course) ? eventEntry.course : 'SCY'
 
@@ -277,16 +289,37 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
                 heat_number: null,
             }
 
-            await (supabase.from('heat_entries' as any) as any).insert(eventRow)
-            await (supabase.from('meet_entries' as any) as any).insert(eventRow)
+            const [heatEntryResult, meetEntryResult, entryResult] = await Promise.all([
+                (supabase.from('heat_entries' as any) as any).insert(eventRow),
+                (supabase.from('meet_entries' as any) as any).insert(eventRow),
+                (supabase.from('entries' as any) as any).insert({
+                    meet_id: meetId,
+                    swimmer_name: eventRow.swimmer_name,
+                    team_code: eventRow.team_code,
+                    age: swimmer.age ?? null,
+                    gender: eventRow.gender,
+                    event_name: eventName,
+                    seed_time: seedTime,
+                }),
+            ])
+
+            if (!heatEntryResult.error && !meetEntryResult.error && !entryResult.error) {
+                importedRows += 1
+            }
         }
+    }
+
+    return {
+        attemptedRows,
+        importedRows,
+        failedRows: attemptedRows - importedRows,
     }
 }
 
-export async function parseRosterAction(formData: FormData, meetId?: string): Promise<ParsedRoster> {
+export async function parseRosterAction(formData: FormData, meetId?: string): Promise<RosterImportResult> {
     const file = formData.get('file')
     if (!(file instanceof File)) {
-        return { swimmers: [] }
+        return { swimmers: [], importSummary: { attemptedRows: 0, importedRows: 0, failedRows: 0 } }
     }
 
     const fileName = file.name || 'roster.csv'
@@ -303,10 +336,11 @@ export async function parseRosterAction(formData: FormData, meetId?: string): Pr
     }
 
     const parsed = fileName.toLowerCase().endsWith('.csv') ? parseCsvFallback(content) : await parseTextToRoster(content, fileName)
+    let importSummary = { attemptedRows: 0, importedRows: 0, failedRows: 0 }
     if (meetId) {
-        await persistParsedRosterToMeet(parsed, meetId)
+        importSummary = await persistParsedRosterToMeet(parsed, meetId)
     }
-    return parsed
+    return { ...parsed, importSummary }
 }
 
 export async function parseRosterContent(rawContent: string, filename = 'roster.csv'): Promise<ParsedRoster> {
