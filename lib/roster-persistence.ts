@@ -33,6 +33,7 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
 
     let attemptedRows = 0
     let importedRows = 0
+    const entryRows: Array<{ meet_id: string; swimmer_name: string; team_code: string | null; age: number | null; gender: string | null; event_name: string; seed_time: string | null }> = []
 
     for (const swimmer of parsed.swimmers) {
         const firstName = swimmer.firstName?.trim() || null
@@ -71,10 +72,13 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
                 heat_number: null,
             }
 
-            const [heatResult, meetEntryResult, entryResult] = await Promise.all([
+            const [heatResult, meetEntryResult] = await Promise.all([
                 (supabase.from('heat_entries' as any) as any).insert(eventRow),
                 (supabase.from('meet_entries' as any) as any).insert(eventRow),
-                (supabase.from('entries' as any) as any).insert({
+            ])
+
+            if (!heatResult.error && !meetEntryResult.error) {
+                entryRows.push({
                     meet_id: meetId,
                     swimmer_name: eventRow.swimmer_name,
                     team_code: eventRow.team_code,
@@ -82,11 +86,14 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
                     gender: eventRow.gender,
                     event_name: eventName,
                     seed_time: seedTime,
-                }),
-            ])
-
-            if (!heatResult.error && !meetEntryResult.error && !entryResult.error) importedRows += 1
+                })
+            }
         }
+    }
+
+    if (entryRows.length) {
+        const entryResult = await (supabase.from('entries' as any) as any).insert(entryRows)
+        if (!entryResult.error) importedRows = entryRows.length
     }
 
     return { attemptedRows, importedRows, failedRows: attemptedRows - importedRows }

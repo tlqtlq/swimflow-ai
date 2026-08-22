@@ -20,7 +20,8 @@ export default async function MeetDashboardPage({ params, searchParams }: { para
         (supabase.from('locations' as any) as any).select('*').order('name'),
     ])
 
-    const meet = (meetResult.data ?? null) as { id?: string; name?: string; location?: string | null; location_id?: string | null; course_type?: 'SCY' | 'LCM' | 'SCM'; meet_date?: string | null; paid_until?: string | null; payment_status?: string; is_published?: boolean; accent_color?: string | null; current_event_id?: string | null; current_heat_number?: number; current_heat?: number } | null
+    const meet = (meetResult.data ?? null) as { id?: string; name?: string; location?: string | null; location_id?: string | null; course_type?: 'SCY' | 'LCM' | 'SCM'; meet_date?: string | null; paid_until?: string | null; payment_status?: string; is_published?: boolean; status?: string; accent_color?: string | null; current_event_id?: string | null; current_heat_number?: number; current_heat?: number } | null
+    const isLive = meet?.status === 'live' || meet?.is_published
     const events = ((eventsResult.data ?? []) as Array<{ id: string; name: string; course?: string }>)
     const locations = ((locationsResult.data ?? []) as Array<{ id: string; name: string; address: string | null; course_type_default: 'SCY' | 'LCM' | 'SCM' }>)
     const eventIds = events.map((event) => event.id)
@@ -34,7 +35,7 @@ export default async function MeetDashboardPage({ params, searchParams }: { para
             {!(meet?.payment_status === 'paid' && meet.paid_until && new Date(meet.paid_until) > new Date()) ? <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-blue-200 bg-blue-50 p-4"><div><p className="font-semibold text-blue-950">This meet is currently an unpublished draft.</p><p className="text-sm text-blue-800">Complete payment to publish the live spectator portal.</p></div><a href={`/meets/${params.id}/checkout`} className="rounded-lg bg-[#003296] px-4 py-2 text-sm font-medium text-white hover:bg-[#002878]">Pay to Publish</a></section> : null}
             <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <p className="text-sm font-medium uppercase tracking-[0.16em] text-sky-600">Meet dashboard</p>
-                <h1 className="mt-2 text-3xl font-semibold text-slate-900">{meet?.name ?? 'Meet Details'}</h1>
+                <div className="mt-2 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-semibold text-slate-900">{meet?.name ?? 'Meet Details'}</h1>{isLive ? <span className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-500"><span className="relative mr-2 flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" /></span>LIVE</span> : null}</div>
                 <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
                     <p className="text-slate-600">{meet?.location ?? 'No location'} · {meet?.meet_date ?? 'No date'} · {meet?.course_type ?? 'SCY'}</p>
                     <MeetBillingControls meetId={params.id} paidUntil={meet?.paid_until} isPublished={meet?.is_published} />
