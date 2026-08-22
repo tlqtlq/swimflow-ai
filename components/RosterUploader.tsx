@@ -5,6 +5,7 @@ import type { FormEvent } from 'react'
 
 type ParsedRoster = {
     swimmers: Array<{
+        swimmerName: string
         firstName?: string | null
         lastName?: string | null
         age?: number | null
@@ -48,30 +49,45 @@ const parseRosterFile = (content: string): ParsedRoster => {
     const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
     if (lines.length < 2) return { swimmers: [] }
 
-    const headers = parseCsvRow(lines[0]).map((header) => header.toLowerCase())
-    const valueAt = (fields: string[], column: string, fallback: number) => fields[headers.indexOf(column) >= 0 ? headers.indexOf(column) : fallback]?.trim() ?? ''
+    const aliases: Record<string, string[]> = {
+        swimmerName: ['swimmername', 'name', 'athlete'],
+        firstName: ['firstname'],
+        lastName: ['lastname'],
+        teamCode: ['teamcode', 'team'],
+        age: ['age'],
+        gender: ['gender'],
+        eventName: ['eventname', 'event'],
+        seedTime: ['seedtime'],
+        course: ['course'],
+    }
+    const headers = parseCsvRow(lines[0]).map((header) => header.toLowerCase().replace(/[^a-z0-9]/g, ''))
+    const valueAt = (fields: string[], field: keyof typeof aliases, fallback: number) => {
+        const index = headers.findIndex((header) => aliases[field].includes(header))
+        return fields[index >= 0 ? index : fallback]?.trim() ?? ''
+    }
 
     return {
         swimmers: lines.slice(1).flatMap((line) => {
             const fields = parseCsvRow(line)
             if (fields.length < 2) return []
 
-            const swimmerName = valueAt(fields, 'swimmer_name', 0)
+            const swimmerName = valueAt(fields, 'swimmerName', 0)
             const [firstFromName = '', ...lastFromName] = swimmerName.split(/\s+/).filter(Boolean)
-            const firstName = valueAt(fields, 'first_name', 0) || firstFromName
-            const lastName = valueAt(fields, 'last_name', 1) || lastFromName.join(' ')
-            const eventName = valueAt(fields, 'event_name', 2)
-            const seedTime = valueAt(fields, 'seed_time', 3)
+            const firstName = valueAt(fields, 'firstName', 0) || firstFromName
+            const lastName = valueAt(fields, 'lastName', 1) || lastFromName.join(' ')
+            const eventName = valueAt(fields, 'eventName', 2)
+            const seedTime = valueAt(fields, 'seedTime', 3)
             const course = valueAt(fields, 'course', 4).toUpperCase()
             const ageValue = Number(valueAt(fields, 'age', 6))
 
-            if (!firstName && !lastName) return []
+            if (!swimmerName.trim() && !firstName && !lastName) return []
             return [{
+                swimmerName: swimmerName.trim() || `${firstName} ${lastName}`.trim(),
                 firstName: firstName || null,
                 lastName: lastName || null,
                 age: Number.isFinite(ageValue) ? ageValue : null,
-                teamCode: valueAt(fields, 'team_code', 1) || null,
-                gender: valueAt(fields, 'gender', 3) || null,
+                teamCode: valueAt(fields, 'teamCode', -1) || null,
+                gender: valueAt(fields, 'gender', -1) || null,
                 events: [{
                     name: eventName || 'Unknown Event',
                     seedTime: seedTime || null,

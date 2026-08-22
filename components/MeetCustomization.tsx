@@ -42,9 +42,13 @@ export default function MeetCustomization({ meetId, name, location, date, accent
                     primaryColor: color,
                 }),
             })
-            const result = await response.json()
+            const result = await response.json() as { message?: string; meet?: { name?: string; location?: string | null; meetDate?: string | null; accentColor?: string | null } }
             setMessage(response.ok ? 'Meet settings saved.' : result.message ?? 'Unable to save meet settings.')
             if (response.ok) {
+                setMeetName(result.meet?.name ?? meetName)
+                setMeetLocation(result.meet?.location ?? meetLocation)
+                setMeetDate(result.meet?.meetDate ?? meetDate)
+                setColor(result.meet?.accentColor ?? color)
                 router.refresh()
             }
         } catch {

@@ -2,6 +2,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase'
 
 export type ParsedRoster = {
     swimmers: Array<{
+        swimmerName?: string | null
         firstName?: string | null
         lastName?: string | null
         age?: number | null
@@ -32,8 +33,30 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
     if (meetError || !meet) throw new Error(meetError?.message ?? 'Meet not found.')
 
     let attemptedRows = 0
-    let importedRows = 0
     const entryRows: Array<{ meet_id: string; swimmer_name: string; team_code: string | null; age: number | null; gender: string | null; event_name: string; seed_time: string | null }> = []
+
+    for (const swimmer of parsed.swimmers) {
+        const swimmerName = swimmer.swimmerName?.trim() || `${swimmer.firstName ?? ''} ${swimmer.lastName ?? ''}`.trim()
+        if (!swimmerName) continue
+        for (const eventEntry of swimmer.events) {
+            attemptedRows += 1
+            entryRows.push({
+                meet_id: meetId,
+                swimmer_name: swimmerName,
+                team_code: swimmer.teamCode ?? null,
+                age: swimmer.age ?? null,
+                gender: swimmer.gender ?? null,
+                event_name: eventEntry.name.trim() || 'Unknown Event',
+                seed_time: eventEntry.seedTime ?? null,
+            })
+        }
+    }
+
+    if (!entryRows.length) return { attemptedRows: 0, importedRows: 0, failedRows: 0 }
+
+    const entryResult = await (supabase.from('entries' as any) as any).insert(entryRows).select('id')
+    if (entryResult.error) throw new Error(entryResult.error.message)
+    const importedRows = entryResult.data?.length ?? entryRows.length
 
     for (const swimmer of parsed.swimmers) {
         const firstName = swimmer.firstName?.trim() || null
@@ -50,7 +73,6 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
         if (swimmerResult.error || !swimmerResult.data) continue
 
         for (const eventEntry of swimmer.events) {
-            attemptedRows += 1
             const eventName = eventEntry.name.trim() || 'Unknown Event'
             const course = eventEntry.course === 'LCM' ? 'LCM' : 'SCY'
             const eventResult = await (supabase.from('events' as any) as any).insert({ meet_id: meetId, name: eventName, course, heat_count: 1 }).select('id').single()
@@ -77,23 +99,9 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
                 (supabase.from('meet_entries' as any) as any).insert(eventRow),
             ])
 
-            if (!heatResult.error && !meetEntryResult.error) {
-                entryRows.push({
-                    meet_id: meetId,
-                    swimmer_name: eventRow.swimmer_name,
-                    team_code: eventRow.team_code,
-                    age: swimmer.age ?? null,
-                    gender: eventRow.gender,
-                    event_name: eventName,
-                    seed_time: seedTime,
-                })
-            }
+            void heatResult
+            void meetEntryResult
         }
-    }
-
-    if (entryRows.length) {
-        const entryResult = await (supabase.from('entries' as any) as any).insert(entryRows)
-        if (!entryResult.error) importedRows = entryRows.length
     }
 
     return { attemptedRows, importedRows, failedRows: attemptedRows - importedRows }

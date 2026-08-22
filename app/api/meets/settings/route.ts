@@ -82,5 +82,19 @@ export async function POST(request: Request) {
     revalidatePath(`/meets/${body.meetId}`)
     revalidatePath(`/portal/${body.meetId}`)
 
-    return NextResponse.json({ saved: true, locationId, meet: { name: nextTitle || undefined, location: body.meetLocation, meetDate: body.meetDate, accentColor: colorValue } })
+    const savedMeetResult = await (supabase.from('meets' as any) as any).select('*').eq('id', body.meetId).maybeSingle()
+    if (savedMeetResult.error || !savedMeetResult.data) {
+        return NextResponse.json({ message: savedMeetResult.error?.message ?? 'Meet settings were saved but could not be reloaded.' }, { status: 500 })
+    }
+
+    return NextResponse.json({
+        saved: true,
+        locationId,
+        meet: {
+            name: savedMeetResult.data.name,
+            location: savedMeetResult.data.location,
+            meetDate: savedMeetResult.data.meet_date,
+            accentColor: savedMeetResult.data.accent_color ?? savedMeetResult.data.primary_color ?? colorValue,
+        },
+    })
 }
