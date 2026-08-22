@@ -24,7 +24,7 @@ export default function Header() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <a href="/dashboard" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100">
+                    <a href="/dashboard" className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 sm:flex">
                         <Upload size={16} />
                         Import
                     </a>
