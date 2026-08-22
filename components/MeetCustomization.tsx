@@ -14,12 +14,16 @@ export default function MeetCustomization({ meetId, name, location, date, accent
     const [saving, setSaving] = useState(false)
     const saveTimer = useRef<number | null>(null)
     const latestSaveId = useRef(0)
+    const savedDraft = useRef({ name, location: location ?? '', date: date ?? '', accentColor: accentColor ?? '#003296' })
 
     useEffect(() => {
+        const incomingDraft = { name, location: location ?? '', date: date ?? '', accentColor: accentColor ?? '#003296' }
+        if (latestSaveId.current && JSON.stringify(incomingDraft) !== JSON.stringify(savedDraft.current)) return
         setMeetName(name)
         setMeetDate(date ?? '')
         setMeetLocation(location ?? '')
         setColor(accentColor ?? '#003296')
+        savedDraft.current = incomingDraft
     }, [name, date, location, accentColor])
 
     useEffect(() => {
@@ -53,8 +57,9 @@ export default function MeetCustomization({ meetId, name, location, date, accent
             if (saveId !== latestSaveId.current) return
             if (showMessage || !response.ok) setMessage(response.ok ? 'Meet settings saved.' : result.message ?? 'Unable to save meet settings.')
             if (response.ok) {
-                const savedDraft = { name: result.meet?.name ?? draft.name, location: result.meet?.location ?? draft.location, date: result.meet?.meetDate ?? draft.date, accentColor: result.meet?.accentColor ?? draft.accentColor }
-                publishDraft(savedDraft)
+                const acknowledgedDraft = { name: result.meet?.name ?? draft.name, location: result.meet?.location ?? draft.location, date: result.meet?.meetDate ?? draft.date, accentColor: result.meet?.accentColor ?? draft.accentColor }
+                savedDraft.current = acknowledgedDraft
+                publishDraft(acknowledgedDraft)
             }
         } catch {
             setMessage('Unable to save meet settings.')
