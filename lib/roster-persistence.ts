@@ -55,8 +55,8 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
     if (!entryRows.length) return { attemptedRows: 0, importedRows: 0, failedRows: 0 }
 
     const entryResult = await (supabase.from('entries' as any) as any).insert(entryRows).select('id')
-    if (entryResult.error) throw new Error(entryResult.error.message)
-    const importedRows = entryResult.data?.length ?? entryRows.length
+    const importedRows = entryResult.error ? 0 : (entryResult.data?.length ?? entryRows.length)
+    let seededRows = 0
 
     for (const swimmer of parsed.swimmers) {
         const firstName = swimmer.firstName?.trim() || null
@@ -99,10 +99,13 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
                 (supabase.from('meet_entries' as any) as any).insert(eventRow),
             ])
 
+            if (!meetEntryResult.error) seededRows += 1
             void heatResult
-            void meetEntryResult
         }
     }
 
-    return { attemptedRows, importedRows, failedRows: attemptedRows - importedRows }
+    const savedRows = seededRows || importedRows
+    if (!savedRows) throw new Error(entryResult.error?.message ?? 'Roster rows could not be seeded for this meet.')
+
+    return { attemptedRows, importedRows: savedRows, failedRows: attemptedRows - savedRows }
 }

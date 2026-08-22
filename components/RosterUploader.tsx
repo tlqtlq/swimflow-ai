@@ -73,8 +73,8 @@ const parseRosterFile = (content: string): ParsedRoster => {
 
             const swimmerName = valueAt(fields, 'swimmerName', 0)
             const [firstFromName = '', ...lastFromName] = swimmerName.split(/\s+/).filter(Boolean)
-            const firstName = valueAt(fields, 'firstName', 0) || firstFromName
-            const lastName = valueAt(fields, 'lastName', 1) || lastFromName.join(' ')
+            const firstName = valueAt(fields, 'firstName', -1) || firstFromName
+            const lastName = valueAt(fields, 'lastName', -1) || lastFromName.join(' ')
             const eventName = valueAt(fields, 'eventName', 2)
             const seedTime = valueAt(fields, 'seedTime', 3)
             const course = valueAt(fields, 'course', 4).toUpperCase()
