@@ -2,7 +2,85 @@
 
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { parseRosterAction, type RosterImportResult } from '@/lib/actions/parse-roster'
+
+type ParsedRoster = {
+    swimmers: Array<{
+        firstName?: string | null
+        lastName?: string | null
+        age?: number | null
+        teamCode?: string | null
+        gender?: string | null
+        events: Array<{ name: string; seedTime?: string | null; course?: 'SCY' | 'LCM' | null }>
+    }>
+}
+
+type RosterImportResult = ParsedRoster & {
+    importSummary: { attemptedRows: number; importedRows: number; failedRows: number }
+}
+
+const parseCsvRow = (line: string) => {
+    const fields: string[] = []
+    let field = ''
+    let quoted = false
+
+    for (let index = 0; index < line.length; index += 1) {
+        const character = line[index]
+        if (character === '"') {
+            if (quoted && line[index + 1] === '"') {
+                field += '"'
+                index += 1
+            } else {
+                quoted = !quoted
+            }
+        } else if (character === ',' && !quoted) {
+            fields.push(field.trim())
+            field = ''
+        } else {
+            field += character
+        }
+    }
+
+    fields.push(field.trim())
+    return fields
+}
+
+const parseRosterFile = (content: string): ParsedRoster => {
+    const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+    if (lines.length < 2) return { swimmers: [] }
+
+    const headers = parseCsvRow(lines[0]).map((header) => header.toLowerCase())
+    const valueAt = (fields: string[], column: string, fallback: number) => fields[headers.indexOf(column) >= 0 ? headers.indexOf(column) : fallback]?.trim() ?? ''
+
+    return {
+        swimmers: lines.slice(1).flatMap((line) => {
+            const fields = parseCsvRow(line)
+            if (fields.length < 2) return []
+
+            const swimmerName = valueAt(fields, 'swimmer_name', 0)
+            const [firstFromName = '', ...lastFromName] = swimmerName.split(/\s+/).filter(Boolean)
+            const firstName = valueAt(fields, 'first_name', 0) || firstFromName
+            const lastName = valueAt(fields, 'last_name', 1) || lastFromName.join(' ')
+            const eventName = valueAt(fields, 'event_name', 2)
+            const seedTime = valueAt(fields, 'seed_time', 3)
+            const course = valueAt(fields, 'course', 4).toUpperCase()
+            const ageValue = Number(valueAt(fields, 'age', 6))
+
+            if (!firstName && !lastName) return []
+            return [{
+                firstName: firstName || null,
+                lastName: lastName || null,
+                age: Number.isFinite(ageValue) ? ageValue : null,
+                teamCode: valueAt(fields, 'team_code', 1) || null,
+                gender: valueAt(fields, 'gender', 3) || null,
+                events: [{
+                    name: eventName || 'Unknown Event',
+                    seedTime: seedTime || null,
+                    course: course === 'SCY' || course === 'LCM' ? course : null,
+                }],
+            }]
+        }),
+    }
+}
 
 export default function RosterUploader({ meetId }: { meetId: string }) {
     const inputRef = useRef<HTMLInputElement | null>(null)
@@ -37,9 +115,23 @@ export default function RosterUploader({ meetId }: { meetId: string }) {
         setSuccessMessage('')
 
         try {
-            const formData = new FormData()
-            formData.append('file', file)
-            const parsed = await parseRosterAction(formData, meetId)
+            const parsedRoster = parseRosterFile(await file.text())
+            if (parsedRoster.swimmers.length === 0) {
+                setError('No roster rows were detected in this file.')
+                return
+            }
+
+            const response = await fetch('/api/meets/roster', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ meetId, roster: parsedRoster }),
+            })
+            const payload = await response.json() as RosterImportResult | { message?: string }
+            if (!response.ok || !('importSummary' in payload)) {
+                throw new Error('message' in payload ? payload.message : 'Unable to import roster.')
+            }
+
+            const parsed = payload
             const rowCount = parsed.importSummary.attemptedRows
 
             setResult(parsed)
@@ -107,7 +199,7 @@ export default function RosterUploader({ meetId }: { meetId: string }) {
                         ref={inputRef}
                         type="file"
                         name="file"
-                        accept=".csv,.hy3,.pdf,text/csv,application/pdf"
+                        accept=".csv,.hy3,.txt,text/csv,text/plain"
                         className="hidden"
                         onChange={(event) => handleFileSelection(event.target.files?.[0] ?? null)}
                     />
@@ -115,7 +207,7 @@ export default function RosterUploader({ meetId }: { meetId: string }) {
                         <span className="text-lg">📁</span>
                     </div>
                     <p className="text-base font-medium text-slate-800">{selectedFile ? selectedFile.name : 'Drag and drop a roster here'}</p>
-                    <p className="mt-1 text-sm text-slate-500">{selectedFile ? 'Click to choose a different file' : 'or click to select CSV, HY3, or PDF files'}</p>
+                    <p className="mt-1 text-sm text-slate-500">{selectedFile ? 'Click to choose a different file' : 'or click to select a CSV, HY3, or text file'}</p>
                 </label>
 
                 <button

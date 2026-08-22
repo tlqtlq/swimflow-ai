@@ -26,7 +26,7 @@ export async function POST(request: Request) {
             const paidUntil = new Date()
             paidUntil.setFullYear(paidUntil.getFullYear() + (selectedPlan === 'annual' ? 1 : 0))
             if (selectedPlan === 'single') paidUntil.setDate(paidUntil.getDate() + 30)
-            const { error } = await (supabase.from('meets' as any) as any).update({ payment_status: 'paid', is_published: true, status: 'published', paid_until: paidUntil.toISOString() }).eq('id', meetId)
+            const { error } = await (supabase.from('meets' as any) as any).update({ payment_status: 'paid', is_published: true, status: 'published', paid_until: paidUntil.toISOString() }).eq('id', meet.id)
             if (error) return NextResponse.json({ message: error.message }, { status: 500 })
             return NextResponse.json({ paid: true, redirectUrl: `/meets/${meet.id}?payment=success` })
         }
