@@ -2,14 +2,14 @@
 
 import { useState } from 'react'
 
-export default function CheckoutActions({ meetId, stripeEnabled }: { meetId: string; stripeEnabled: boolean }) {
+export default function CheckoutActions({ meetId, stripeEnabled, planType }: { meetId: string; stripeEnabled: boolean; planType: 'single' | 'annual' }) {
     const [loading, setLoading] = useState<'test' | 'stripe' | null>(null)
     const [message, setMessage] = useState('')
     const startCheckout = async (testMode: boolean) => {
         setLoading(testMode ? 'test' : 'stripe')
         setMessage('')
         try {
-            const response = await fetch('/api/checkout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ meetId, planType: 'single', testMode }) })
+            const response = await fetch('/api/checkout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ meetId, planType, testMode }) })
             const payload = await response.json()
             if (!response.ok) throw new Error(payload.message || 'Unable to complete checkout.')
             window.location.assign(payload.redirectUrl || payload.url)

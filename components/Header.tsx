@@ -8,7 +8,7 @@ export default function Header() {
             <div className="container flex items-center justify-between h-20 py-2">
                 <div className="flex items-center gap-3">
                     <a href="/dashboard" className="flex items-center">
-                        <Image src="/logo.png" alt="SwimFlow.ai Home" width={280} height={64} className="h-16 w-auto object-contain" priority />
+                        <Image src="/logo.png" alt="SwimFlow.ai Home" width={280} height={64} style={{ width: 'auto', height: '64px' }} className="object-contain" priority />
                     </a>
                     <nav className="flex gap-3 text-sm text-slate-600">
                         <a href="/dashboard" className="hover:underline">
