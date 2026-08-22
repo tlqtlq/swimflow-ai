@@ -79,19 +79,19 @@ export default function MeetCustomization({ meetId, name, location, date, accent
 
     return (
         <>
-            <section className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
-                <div className="flex flex-wrap items-end justify-between gap-4">
+            <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
+                <div className="flex flex-wrap items-end justify-between gap-4 bg-slate-900 p-6 text-white">
                     <div>
-                        <p className="text-sm font-semibold uppercase tracking-[0.14em] text-sky-600">Director settings</p>
-                        <h2 className="mt-1 text-xl font-semibold text-slate-900">Customize meet</h2>
+                        <p className="text-sm font-semibold uppercase tracking-[0.14em] text-sky-300">Director settings</p>
+                        <h2 className="mt-1 text-xl font-semibold">Customize meet</h2>
                     </div>
                     <button type="button" disabled={saving} onClick={() => void save()} className="rounded-lg bg-[#003296] px-4 py-2 text-sm font-bold text-white shadow hover:bg-[#002878] disabled:opacity-60">{saving ? 'Saving...' : 'Save Meet Settings'}</button>
                 </div>
-                <div className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_12rem_8rem]">
-                    <label className="text-sm font-medium text-slate-700">Meet title<input value={meetName} onChange={(event) => { const name = event.target.value; setMeetName(name); queueSave({ name, location: meetLocation, date: meetDate, accentColor: color }) }} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-                    <label className="text-sm font-medium text-slate-700">Location<input value={meetLocation} onChange={(event) => { const location = event.target.value; setMeetLocation(location); queueSave({ name: meetName, location, date: meetDate, accentColor: color }) }} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-                    <label className="text-sm font-medium text-slate-700">Start date<input type="date" value={meetDate} onChange={(event) => { const date = event.target.value; setMeetDate(date); queueSave({ name: meetName, location: meetLocation, date, accentColor: color }) }} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-                    <label className="text-sm font-medium text-slate-700">Accent color<input type="color" value={color} onChange={(event) => { const accentColor = event.target.value; setColor(accentColor); queueSave({ name: meetName, location: meetLocation, date: meetDate, accentColor }) }} className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-1" /></label>
+                <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
+                    <label className="text-sm font-medium text-slate-700">Meet title<input value={meetName} onChange={(event) => { const name = event.target.value; setMeetName(name); queueSave({ name, location: meetLocation, date: meetDate, accentColor: color }) }} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500" /></label>
+                    <label className="text-sm font-medium text-slate-700">Location<input value={meetLocation} onChange={(event) => { const location = event.target.value; setMeetLocation(location); queueSave({ name: meetName, location, date: meetDate, accentColor: color }) }} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500" /></label>
+                    <label className="text-sm font-medium text-slate-700">Start date<input type="date" value={meetDate} onChange={(event) => { const date = event.target.value; setMeetDate(date); queueSave({ name: meetName, location: meetLocation, date, accentColor: color }) }} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500" /></label>
+                    <label className="text-sm font-medium text-slate-700">Accent color<input type="color" value={color} onChange={(event) => { const accentColor = event.target.value; setColor(accentColor); queueSave({ name: meetName, location: meetLocation, date: meetDate, accentColor }) }} className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-1 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500" /></label>
                 </div>
             </section>
             {message ? (
