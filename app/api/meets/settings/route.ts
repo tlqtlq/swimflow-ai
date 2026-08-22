@@ -51,32 +51,28 @@ export async function POST(request: Request) {
     if (body.meetDate) update.meet_date = body.meetDate
     if (body.meetLocation !== undefined) update.location = body.meetLocation.trim() || null
 
+    const updateMeet = (values: Record<string, string | null>) => (supabase.from('meets' as any) as any).update(values).eq('id', body.meetId)
     const accentColor = body.accentColor ?? body.primaryColor
     const colorValue = accentColor?.trim()
-    if (colorValue && isValidHexColor(colorValue)) {
-        update.accent_color = colorValue
-        update.primary_color = colorValue
+    const baseResult = await updateMeet(update)
+
+    if (baseResult.error) {
+        return NextResponse.json({ message: baseResult.error.message }, { status: 500 })
     }
 
-    const updateColorFields = ['accent_color', 'primary_color']
-    const { error } = await (supabase.from('meets' as any) as any).update(update).eq('id', body.meetId)
-
-    if (error) {
-        const message = error.message.toLowerCase()
-        const isSchemaCacheIssue = message.includes('schema cache') || message.includes('column') && message.includes('does not exist')
-
-        if (isSchemaCacheIssue) {
-            const fallbackUpdate: Record<string, string | null> = { ...update }
-            for (const field of updateColorFields) {
-                delete fallbackUpdate[field]
+    if (colorValue && isValidHexColor(colorValue)) {
+        const accentResult = await updateMeet({ accent_color: colorValue })
+        if (accentResult.error) {
+            const message = accentResult.error.message.toLowerCase()
+            const isSchemaCacheIssue = message.includes('schema cache') || message.includes('column') && message.includes('does not exist')
+            if (!isSchemaCacheIssue) {
+                return NextResponse.json({ message: accentResult.error.message }, { status: 500 })
             }
 
-            const fallbackResult = await (supabase.from('meets' as any) as any).update(fallbackUpdate).eq('id', body.meetId)
-            if (fallbackResult.error) {
-                return NextResponse.json({ message: fallbackResult.error.message }, { status: 500 })
+            const primaryResult = await updateMeet({ primary_color: colorValue })
+            if (primaryResult.error) {
+                return NextResponse.json({ message: primaryResult.error.message }, { status: 500 })
             }
-        } else {
-            return NextResponse.json({ message: error.message }, { status: 500 })
         }
     }
 

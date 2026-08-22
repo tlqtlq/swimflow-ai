@@ -102,6 +102,18 @@ create table if not exists meet_entries (
   created_at timestamptz not null default now()
 );
 
+create table if not exists entries (
+  id uuid primary key default gen_random_uuid(),
+  meet_id uuid not null references meets(id) on delete cascade,
+  swimmer_name text not null,
+  team_code text,
+  age integer,
+  gender text,
+  event_name text not null,
+  seed_time text,
+  created_at timestamptz not null default now()
+);
+
 alter table meets add column if not exists stripe_customer_id text;
 alter table meets add column if not exists stripe_checkout_session_id text;
 alter table meets add column if not exists paid_until timestamptz;
@@ -159,6 +171,7 @@ create index if not exists idx_events_meet_id on events (meet_id);
 create index if not exists idx_heat_entries_event_id on heat_entries (event_id);
 create index if not exists idx_heat_entries_swimmer_id on heat_entries (swimmer_id);
 create index if not exists idx_meet_entries_event_id on meet_entries (event_id);
+create index if not exists idx_entries_meet_id on entries (meet_id);
 create index if not exists idx_subscribers_meet_id on subscribers (meet_id);
 create index if not exists idx_heat_announcements_meet_id on heat_announcements (meet_id, created_at desc);
 
@@ -168,6 +181,7 @@ alter table meets enable row level security;
 alter table swimmers enable row level security;
 alter table events enable row level security;
 alter table heat_entries enable row level security;
+alter table entries enable row level security;
 alter table heat_announcements enable row level security;
 
 create policy "organizations_authenticated_read_write" on organizations
@@ -176,6 +190,9 @@ create policy "organizations_authenticated_read_write" on organizations
   with check (auth.uid() is not null);
 
 create policy "locations_authenticated_read_write" on locations
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
+
+create policy "entries_authenticated_read_write" on entries
   for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
 create policy "locations_public_select" on locations

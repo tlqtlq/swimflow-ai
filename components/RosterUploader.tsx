@@ -2,14 +2,14 @@
 
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { parseRosterAction, type ParsedRoster } from '@/lib/actions/parse-roster'
+import { parseRosterAction, type RosterImportResult } from '@/lib/actions/parse-roster'
 
 export default function RosterUploader({ meetId }: { meetId: string }) {
     const inputRef = useRef<HTMLInputElement | null>(null)
     const [isDragging, setIsDragging] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
-    const [result, setResult] = useState<ParsedRoster | null>(null)
+    const [result, setResult] = useState<RosterImportResult | null>(null)
     const [error, setError] = useState('')
     const [successMessage, setSuccessMessage] = useState('')
     const [summary, setSummary] = useState<{ swimmers: number; heats: Record<string, number>; rows: number } | null>(null)
@@ -40,7 +40,7 @@ export default function RosterUploader({ meetId }: { meetId: string }) {
             const formData = new FormData()
             formData.append('file', file)
             const parsed = await parseRosterAction(formData, meetId)
-            const rowCount = parsed.swimmers.reduce((total, swimmer) => total + (swimmer.events?.length ?? 0), 0)
+            const rowCount = parsed.importSummary.attemptedRows
 
             setResult(parsed)
             const heatCounts = new Map<string, number>()
@@ -53,14 +53,16 @@ export default function RosterUploader({ meetId }: { meetId: string }) {
 
             setSummary({
                 swimmers: parsed.swimmers.length,
-                rows: rowCount,
+                rows: parsed.importSummary.importedRows,
                 heats: Object.fromEntries(heatCounts.entries()),
             })
 
-            if (rowCount > 0) {
-                setSuccessMessage(`Successfully imported ${rowCount} roster rows for ${parsed.swimmers.length} swimmer${parsed.swimmers.length === 1 ? '' : 's'}.`)
+            if (parsed.importSummary.importedRows > 0 && parsed.importSummary.failedRows === 0) {
+                setSuccessMessage(`Successfully imported ${parsed.importSummary.importedRows} roster rows for ${parsed.swimmers.length} swimmer${parsed.swimmers.length === 1 ? '' : 's'}.`)
+            } else if (parsed.importSummary.importedRows > 0) {
+                setSuccessMessage(`Imported ${parsed.importSummary.importedRows} roster rows. ${parsed.importSummary.failedRows} row${parsed.importSummary.failedRows === 1 ? '' : 's'} could not be saved.`)
             } else {
-                setError('No roster rows were detected in this file.')
+                setError(rowCount > 0 ? 'The roster was parsed, but none of its rows could be saved.' : 'No roster rows were detected in this file.')
             }
         } catch (caughtError) {
             setError(caughtError instanceof Error ? caughtError.message : 'Unable to parse roster.')
@@ -100,7 +102,6 @@ export default function RosterUploader({ meetId }: { meetId: string }) {
                             inputRef.current.files = dataTransfer.files
                         }
                     }}
-                    onClick={() => inputRef.current?.click()}
                 >
                     <input
                         ref={inputRef}
