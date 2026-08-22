@@ -8,6 +8,7 @@ import { getPortalUrl } from '@/lib/app-url'
 import RosterImportModal from '@/components/RosterImportModal'
 import MeetCustomization from '@/components/MeetCustomization'
 import MeetDashboardHeader from '@/components/MeetDashboardHeader'
+import { ClipboardList } from 'lucide-react'
 
 export default async function MeetDashboardPage({ params, searchParams }: { params: { id: string }; searchParams?: { payment?: string } }) {
     const supabase = createSupabaseServerClient()
@@ -36,23 +37,31 @@ export default async function MeetDashboardPage({ params, searchParams }: { para
             {!(meet?.payment_status === 'paid' && meet.paid_until && new Date(meet.paid_until) > new Date()) ? <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-blue-200 bg-blue-50 p-4"><div><p className="font-semibold text-blue-950">This meet is currently an unpublished draft.</p><p className="text-sm text-blue-800">Complete payment to publish the live spectator portal.</p></div><a href={`/meets/${params.id}/checkout`} className="rounded-lg bg-[#003296] px-4 py-2 text-sm font-medium text-white hover:bg-[#002878]">Pay to Publish</a></section> : null}
             <div className="relative"><MeetDashboardHeader initialMeet={{ name: meet?.name ?? 'Meet Details', location: meet?.location ?? null, date: meet?.meet_date ?? null, accentColor: meet?.accent_color ?? null }} isLive={isLive} /><div className="absolute bottom-6 right-6"><MeetBillingControls meetId={params.id} paidUntil={meet?.paid_until} isPublished={meet?.is_published} /></div></div>
 
-            <nav className="flex flex-wrap items-center gap-2 text-sm">
-                <RosterImportModal meetId={params.id} />
-                <a href={`/dashboard/meets/${params.id}/print`} className="rounded-lg border border-slate-300 bg-white px-3 py-2">Print heat sheet</a>
-                <a href={`/dashboard/meets/${params.id}/print?view=results`} className="rounded-lg border border-slate-300 bg-white px-3 py-2">Print results</a>
-                <a href={`/dashboard/meets/${params.id}/summary`} className="rounded-lg border border-slate-300 bg-white px-3 py-2">Generate summary</a>
-                <a href={getPortalUrl(meet?.id ?? params.id)} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-300 bg-white px-3 py-2">Live Portal</a>
+            <nav className="flex w-fit flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1.5 text-sm">
+                <RosterImportModal meetId={params.id} className="rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2 text-sm font-medium text-slate-800 transition-all hover:bg-slate-200" />
+                <a href={`/dashboard/meets/${params.id}/print`} className="rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2 text-sm font-medium text-slate-800 transition-all hover:bg-slate-200">Print Heat Sheet</a>
+                <a href={`/dashboard/meets/${params.id}/print?view=results`} className="rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2 text-sm font-medium text-slate-800 transition-all hover:bg-slate-200">Print Results</a>
+                <a href={getPortalUrl(meet?.id ?? params.id)} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2 text-sm font-medium text-slate-800 transition-all hover:bg-slate-200">Live Portal</a>
             </nav>
 
-            <MeetPortalQr meetId={meet?.id ?? params.id} meetName={meet?.name ?? 'Swim meet'} />
-            <MeetCustomization meetId={params.id} name={meet?.name ?? 'Swim meet'} location={meet?.location} date={meet?.meet_date} accentColor={meet?.accent_color} />
-            <MeetSettings meetId={params.id} courseType={meet?.course_type ?? 'SCY'} locationId={meet?.location_id} locations={locations} />
+            <section className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                <div className="space-y-6 lg:col-span-7">
+                    <MeetCustomization meetId={params.id} name={meet?.name ?? 'Swim meet'} location={meet?.location} date={meet?.meet_date} accentColor={meet?.accent_color} />
+                    <MeetSettings meetId={params.id} courseType={meet?.course_type ?? 'SCY'} locationId={meet?.location_id} locations={locations} />
+                </div>
+                <div className="lg:col-span-5">
+                    <MeetPortalQr meetId={meet?.id ?? params.id} meetName={meet?.name ?? 'Swim meet'} />
+                </div>
+            </section>
             <DeckController meetId={params.id} events={events.map((event) => ({ id: event.id, name: event.name, course: event.course }))} entries={eventEntries} currentEventId={meet?.current_event_id} currentHeat={meet?.current_heat ?? meet?.current_heat_number ?? 1} courseType={meet?.course_type ?? 'SCY'} />
 
             <section className="grid gap-5 md:grid-cols-2">
                 {events.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-slate-500 md:col-span-2">
-                        No events have been created for this meet yet.
+                    <div className="flex flex-col items-center rounded-xl border border-slate-200/80 bg-white px-6 py-12 text-center shadow-sm md:col-span-2">
+                        <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-100 text-slate-600"><ClipboardList size={22} aria-hidden="true" /></span>
+                        <h2 className="mt-4 text-xl font-semibold text-slate-900">No Heats or Swimmers Loaded</h2>
+                        <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">Upload a roster file (.csv or .hy3) in Director Settings above to automatically populate events and heat assignments.</p>
+                        <div className="mt-6"><RosterImportModal meetId={params.id} /></div>
                     </div>
                 ) : (
                     events.map((event) => {
