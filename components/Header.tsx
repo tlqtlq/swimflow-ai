@@ -5,10 +5,10 @@ import Image from 'next/image'
 export default function Header() {
     return (
         <header className="bg-white border-b">
-            <div className="container flex items-center justify-between h-20 py-2">
+            <div className="container flex min-h-24 items-center justify-between py-2">
                 <div className="flex items-center gap-3">
                     <a href="/dashboard" className="flex items-center">
-                        <Image src="/logo.png" alt="SwimFlow.ai Home" width={280} height={64} style={{ width: 'auto', height: '64px' }} className="object-contain" priority />
+                        <Image src="/logo.png" alt="SwimFlow.ai Home" width={320} height={80} style={{ width: 'auto', height: '80px' }} className="max-h-20 object-contain" priority />
                     </a>
                     <nav className="flex gap-3 text-sm text-slate-600">
                         <a href="/dashboard" className="hover:underline">

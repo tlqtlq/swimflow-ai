@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 type LocationOption = { id: string; name: string; address: string | null; course_type_default: 'SCY' | 'LCM' | 'SCM' }
@@ -15,6 +15,7 @@ export default function MeetSettings({ meetId, courseType, locationId, locations
     const [addressQuery, setAddressQuery] = useState('')
     const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([])
     const [message, setMessage] = useState('')
+    const selectedAddressRef = useRef('')
 
     useEffect(() => {
         setCourse(courseType)
@@ -26,6 +27,11 @@ export default function MeetSettings({ meetId, courseType, locationId, locations
             setSuggestions([])
             return
         }
+        if (selectedAddressRef.current === addressQuery.trim()) {
+            selectedAddressRef.current = ''
+            setSuggestions([])
+            return
+        }
 
         const controller = new AbortController()
         const timer = window.setTimeout(async () => {
@@ -34,7 +40,7 @@ export default function MeetSettings({ meetId, courseType, locationId, locations
                     signal: controller.signal,
                     headers: { Accept: 'application/json' },
                 })
-                if (response.ok) setSuggestions((await response.json()) as AddressSuggestion[])
+                if (response.ok) setSuggestions(((await response.json()) as AddressSuggestion[]).slice(0, 3))
             } catch (error) {
                 if ((error as Error).name !== 'AbortError') setSuggestions([])
             }
@@ -69,6 +75,7 @@ export default function MeetSettings({ meetId, courseType, locationId, locations
         const nextName = suggestion.name?.trim() || suggestion.display_name.split(',')[0].trim()
         setLocationName(nextName)
         setAddress(suggestion.display_name)
+        selectedAddressRef.current = suggestion.display_name
         setAddressQuery(suggestion.display_name)
         setSuggestions([])
         void save(nextName, suggestion.display_name, '')
@@ -98,7 +105,7 @@ export default function MeetSettings({ meetId, courseType, locationId, locations
                     Saved location
                     <select value={selectedLocation} onChange={(event) => setSelectedLocation(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
                         <option value="">Type a new location</option>
-                        {locations.map((location) => (
+                        {locations.slice(0, 3).map((location) => (
                             <option key={location.id} value={location.id}>{location.name}</option>
                         ))}
                     </select>
