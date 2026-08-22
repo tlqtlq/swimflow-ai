@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createSupabaseAdminClient } from '@/lib/supabase'
 
 const isValidHexColor = (value?: string) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value.trim())
@@ -76,5 +77,10 @@ export async function POST(request: Request) {
         }
     }
 
-    return NextResponse.json({ saved: true, locationId })
+    revalidatePath('/dashboard')
+    revalidatePath(`/dashboard/meets/${body.meetId}`)
+    revalidatePath(`/meets/${body.meetId}`)
+    revalidatePath(`/portal/${body.meetId}`)
+
+    return NextResponse.json({ saved: true, locationId, meet: { name: nextTitle || undefined, location: body.meetLocation, meetDate: body.meetDate, accentColor: colorValue } })
 }
