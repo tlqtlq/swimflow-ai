@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseAdminClient } from '@/lib/supabase'
 
 export async function POST(request: Request) {
-    const body = await request.json() as { meetId?: string; courseType?: 'SCY' | 'LCM' | 'SCM'; locationId?: string; locationName?: string; address?: string }
+    const body = await request.json() as { meetId?: string; courseType?: 'SCY' | 'LCM' | 'SCM'; locationId?: string; locationName?: string; address?: string; meetName?: string; meetDate?: string; meetLocation?: string; accentColor?: string }
     if (!body.meetId) return NextResponse.json({ message: 'meetId is required.' }, { status: 400 })
     const supabase = createSupabaseAdminClient()
     if (!supabase) return NextResponse.json({ message: 'Supabase is not configured.' }, { status: 500 })
@@ -20,6 +20,10 @@ export async function POST(request: Request) {
 
     const update: Record<string, string | null> = { location_id: locationId }
     if (body.courseType) update.course_type = body.courseType
+    if (body.meetName?.trim()) update.name = body.meetName.trim()
+    if (body.meetDate) update.meet_date = body.meetDate
+    if (body.meetLocation !== undefined) update.location = body.meetLocation.trim() || null
+    if (body.accentColor && /^#[0-9a-f]{6}$/i.test(body.accentColor)) update.accent_color = body.accentColor
     const { error } = await (supabase.from('meets' as any) as any).update(update).eq('id', body.meetId)
     if (error) return NextResponse.json({ message: error.message }, { status: 500 })
     return NextResponse.json({ saved: true, locationId })

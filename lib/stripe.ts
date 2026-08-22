@@ -8,4 +8,4 @@ export function getStripe() {
     return stripeClient
 }
 
-export const getCheckoutPrice = (plan: 'meet' | 'annual') => plan === 'annual' ? 49900 : 4900
+export const getCheckoutPrice = (plan: 'meet' | 'annual') => plan === 'annual' ? 29999 : 3499
