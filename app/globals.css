@@ -10,8 +10,14 @@ body,
 
 body {
     @apply bg-slate-50 text-slate-900 antialiased;
+    min-height: 100%;
+    margin: 0;
 }
 
 .container {
     @apply max-w-6xl mx-auto px-4;
+}
+
+a {
+    color: inherit;
 }

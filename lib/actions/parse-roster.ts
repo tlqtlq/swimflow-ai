@@ -1,7 +1,6 @@
 'use server'
 
 import OpenAI from 'openai'
-import { PDFParse } from 'pdf-parse'
 import { z } from 'zod'
 import { createSupabaseAdminClient } from '@/lib/supabase'
 
@@ -323,17 +322,11 @@ export async function parseRosterAction(formData: FormData, meetId?: string): Pr
     }
 
     const fileName = file.name || 'roster.csv'
-    const isPdf = fileName.toLowerCase().endsWith('.pdf')
-
-    let content = ''
-    if (isPdf) {
-        const buffer = Buffer.from(await file.arrayBuffer())
-        const parser = new PDFParse({ data: buffer })
-        const pdfData = await parser.getText()
-        content = pdfData.text || ''
-    } else {
-        content = await file.text()
+    if (fileName.toLowerCase().endsWith('.pdf')) {
+        throw new Error('PDF roster import is not supported. Upload a CSV, HY3, or text roster file.')
     }
+
+    const content = await file.text()
 
     const parsed = fileName.toLowerCase().endsWith('.csv') ? parseCsvFallback(content) : await parseTextToRoster(content, fileName)
     let importSummary = { attemptedRows: 0, importedRows: 0, failedRows: 0 }
