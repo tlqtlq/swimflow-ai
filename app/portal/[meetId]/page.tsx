@@ -1,0 +1,23 @@
+import { createSupabaseServerClient } from '@/lib/supabase'
+import LiveSpectatorPortal from '@/components/LiveSpectatorPortal'
+
+export default async function MeetPortalPage({ params }: { params: { meetId: string } }) {
+    const supabase = createSupabaseServerClient()
+    if (!supabase) {
+        return <div className="container py-10 text-slate-600">Supabase is not configured.</div>
+    }
+
+    const meet = (await supabase.from('meets').select('*').eq('id', params.meetId).single()).data as { name?: string | null; location?: string | null; location_id?: string | null; course_type?: 'SCY' | 'LCM' | 'SCM'; status?: string; is_published?: boolean; current_event_id?: string | null; current_heat_number?: number; current_heat?: number } | null
+    if (!meet || (!meet.is_published && !['published', 'live', 'completed'].includes(meet.status ?? ''))) {
+        return <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-600">This meet portal is not published yet.</div>
+    }
+    const location = meet.location_id ? (await (supabase.from('locations' as any) as any).select('name,address').eq('id', meet.location_id).maybeSingle()).data as { name?: string; address?: string | null } | null : null
+    const events = ((await supabase.from('events').select('*').eq('meet_id', params.meetId).order('name')).data ?? []) as Array<{ id: string; name: string; course?: string | null }>
+    const eventIds = events.map((event) => event.id)
+
+    const entries = (eventIds.length
+        ? (await supabase.from('meet_entries').select('*').in('event_id', eventIds).order('heat_number', { ascending: true, nullsFirst: true }).order('lane_number', { ascending: true, nullsFirst: true })).data ?? []
+        : []) as Array<{ id: string; event_id: string; lane_number?: number | null; lane?: number | null; swimmer_name?: string | null; heat_number?: number | null; heat?: number | null; seed_time?: string | null; result_time?: string | null; place?: number | null }>
+
+    return <div className="mx-auto max-w-5xl space-y-4 py-8"><div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">{location?.name ?? meet.location ?? 'Venue to be announced'}{location?.address ? <> · <a className="text-sky-700 underline" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.address)}`} target="_blank" rel="noreferrer">View on Google Maps</a></> : null}</div><LiveSpectatorPortal meetId={params.meetId} meetName={meet.name ?? 'Meet'} events={events} initialEntries={entries} currentEventId={meet.current_event_id} currentHeat={meet.current_heat ?? meet.current_heat_number ?? 1} courseType={meet.course_type ?? 'SCY'} /></div>
+}
