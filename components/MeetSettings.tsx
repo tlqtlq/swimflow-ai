@@ -82,7 +82,7 @@ export default function MeetSettings({ meetId, courseType, locationId, locations
     }
 
     return (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <p className="text-sm font-semibold uppercase tracking-[0.14em] text-sky-600">Meet setup</p>
