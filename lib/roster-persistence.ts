@@ -59,8 +59,10 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
     let seededRows = 0
 
     for (const swimmer of parsed.swimmers) {
-        const firstName = swimmer.firstName?.trim() || null
-        const lastName = swimmer.lastName?.trim() || null
+        const fullName = swimmer.swimmerName?.trim() || ''
+        const [derivedFirstName = '', ...derivedLastName] = fullName.split(/\s+/).filter(Boolean)
+        const firstName = swimmer.firstName?.trim() || derivedFirstName || null
+        const lastName = swimmer.lastName?.trim() || derivedLastName.join(' ') || null
         if (!firstName && !lastName) continue
 
         const swimmerResult = await (supabase.from('swimmers' as any) as any).insert({
