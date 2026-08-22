@@ -1,38 +1,71 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { parseRosterAction, type ParsedRoster } from '@/lib/actions/parse-roster'
 
 export default function RosterUploader({ meetId }: { meetId: string }) {
+    const inputRef = useRef<HTMLInputElement | null>(null)
     const [isDragging, setIsDragging] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [result, setResult] = useState<ParsedRoster | null>(null)
     const [error, setError] = useState('')
-    const [summary, setSummary] = useState<{ swimmers: number; heats: Record<string, number> } | null>(null)
+    const [successMessage, setSuccessMessage] = useState('')
+    const [summary, setSummary] = useState<{ swimmers: number; heats: Record<string, number>; rows: number } | null>(null)
+
+    const handleFileSelection = (file: File | null) => {
+        setSelectedFile(file)
+        setError('')
+        setSuccessMessage('')
+        setResult(null)
+        setSummary(null)
+    }
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
-        const form = event.currentTarget
-        const formData = new FormData(form)
-        const file = formData.get('file')
+        const file = selectedFile ?? inputRef.current?.files?.[0] ?? null
 
         if (!(file instanceof File) || !file.name) {
-            setError('Please choose a CSV or PDF roster file.')
+            setError('Please choose a CSV or PDF roster file before uploading.')
             setResult(null)
             return
         }
 
         setIsSubmitting(true)
         setError('')
+        setSuccessMessage('')
 
         try {
+            const formData = new FormData()
+            formData.append('file', file)
             const parsed = await parseRosterAction(formData, meetId)
+            const rowCount = parsed.swimmers.reduce((total, swimmer) => total + (swimmer.events?.length ?? 0), 0)
+
             setResult(parsed)
-            setSummary({ swimmers: parsed.swimmers.length, heats: Object.fromEntries(parsed.swimmers.flatMap((swimmer) => swimmer.events.map((event) => event.name)).reduce((counts, eventName) => counts.set(eventName, (counts.get(eventName) ?? 0) + 1), new Map<string, number>())) })
+            const heatCounts = new Map<string, number>()
+            for (const swimmer of parsed.swimmers) {
+                for (const event of swimmer.events ?? []) {
+                    const eventName = event.name || 'Unknown Event'
+                    heatCounts.set(eventName, (heatCounts.get(eventName) ?? 0) + 1)
+                }
+            }
+
+            setSummary({
+                swimmers: parsed.swimmers.length,
+                rows: rowCount,
+                heats: Object.fromEntries(heatCounts.entries()),
+            })
+
+            if (rowCount > 0) {
+                setSuccessMessage(`Successfully imported ${rowCount} roster rows for ${parsed.swimmers.length} swimmer${parsed.swimmers.length === 1 ? '' : 's'}.`)
+            } else {
+                setError('No roster rows were detected in this file.')
+            }
         } catch (caughtError) {
             setError(caughtError instanceof Error ? caughtError.message : 'Unable to parse roster.')
             setResult(null)
+            setSummary(null)
         } finally {
             setIsSubmitting(false)
         }
@@ -50,8 +83,7 @@ export default function RosterUploader({ meetId }: { meetId: string }) {
 
             <form onSubmit={handleSubmit} className="space-y-4">
                 <label
-                    className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition ${isDragging ? 'border-sky-500 bg-sky-50' : 'border-slate-300 bg-slate-50 hover:border-slate-400'
-                        }`}
+                    className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition ${isDragging ? 'border-sky-500 bg-sky-50' : 'border-slate-300 bg-slate-50 hover:border-slate-400'}`}
                     onDragOver={(event) => {
                         event.preventDefault()
                         setIsDragging(true)
@@ -60,21 +92,29 @@ export default function RosterUploader({ meetId }: { meetId: string }) {
                     onDrop={(event) => {
                         event.preventDefault()
                         setIsDragging(false)
-                        const droppedFile = event.dataTransfer.files?.[0]
-                        if (!droppedFile) return
-                        const input = event.currentTarget.querySelector('input[name="file"]') as HTMLInputElement | null
-                        if (!input) return
-                        const dataTransfer = new DataTransfer()
-                        dataTransfer.items.add(droppedFile)
-                        input.files = dataTransfer.files
+                        const droppedFile = event.dataTransfer.files?.[0] ?? null
+                        handleFileSelection(droppedFile)
+                        if (droppedFile && inputRef.current) {
+                            const dataTransfer = new DataTransfer()
+                            dataTransfer.items.add(droppedFile)
+                            inputRef.current.files = dataTransfer.files
+                        }
                     }}
+                    onClick={() => inputRef.current?.click()}
                 >
-                    <input type="file" name="file" accept=".csv,.hy3" className="hidden" />
+                    <input
+                        ref={inputRef}
+                        type="file"
+                        name="file"
+                        accept=".csv,.hy3,.pdf,text/csv,application/pdf"
+                        className="hidden"
+                        onChange={(event) => handleFileSelection(event.target.files?.[0] ?? null)}
+                    />
                     <div className="mb-3 rounded-full bg-white p-3 shadow-sm">
                         <span className="text-lg">📁</span>
                     </div>
-                    <p className="text-base font-medium text-slate-800">Drag and drop a roster here</p>
-                    <p className="mt-1 text-sm text-slate-500">or click to select CSV/HY3 files</p>
+                    <p className="text-base font-medium text-slate-800">{selectedFile ? selectedFile.name : 'Drag and drop a roster here'}</p>
+                    <p className="mt-1 text-sm text-slate-500">{selectedFile ? 'Click to choose a different file' : 'or click to select CSV, HY3, or PDF files'}</p>
                 </label>
 
                 <button
@@ -82,11 +122,12 @@ export default function RosterUploader({ meetId }: { meetId: string }) {
                     disabled={isSubmitting}
                     className="w-full rounded-xl bg-[#003296] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#002878] disabled:cursor-not-allowed disabled:bg-slate-400"
                 >
-                    {isSubmitting ? 'Parsing roster…' : 'Parse roster'}
+                    {isSubmitting ? 'Uploading roster…' : 'Upload roster'}
                 </button>
             </form>
 
             {error ? <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+            {successMessage ? <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{successMessage}</p> : null}
 
             {result ? (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -107,7 +148,13 @@ export default function RosterUploader({ meetId }: { meetId: string }) {
                     {result.swimmers.length > 6 ? <p className="mt-2 text-xs text-slate-500">+{result.swimmers.length - 6} more swimmers found</p> : null}
                 </div>
             ) : null}
-            {summary ? <div className="rounded-xl border border-emerald-200 bg-emerald-600 p-4 font-bold text-white shadow-xl"><p>{summary.swimmers} swimmers loaded</p><p className="mt-1 text-sm">Heat distribution: {Object.entries(summary.heats).map(([event, count]) => `${event}: ${count}`).join(' · ') || 'No events detected'}</p></div> : null}
+
+            {summary ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-600 p-4 font-bold text-white shadow-xl">
+                    <p>{summary.rows} rows imported across {summary.swimmers} swimmers</p>
+                    <p className="mt-1 text-sm">Heat distribution: {Object.entries(summary.heats).map(([event, count]) => `${event}: ${count}`).join(' · ') || 'No events detected'}</p>
+                </div>
+            ) : null}
         </div>
     )
 }
