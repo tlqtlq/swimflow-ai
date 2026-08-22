@@ -41,8 +41,8 @@ export async function GET(request: Request) {
     await (supabase.from('meets' as any) as any).update({ current_event_id: standardEvents[1].id }).eq('id', ids.meet)
 
     const entryRows = [
-        { id: ids.avaEntry, event_id: ids.event, swimmer_id: ids.ava, swimmer_name: 'Ava Morgan', seed_time: '58.40', seed_time_seconds: 58.4, heat_number: 1, lane_number: 3 },
-        { id: ids.liamEntry, event_id: ids.event, swimmer_id: ids.liam, swimmer_name: 'Liam Chen', seed_time: '56.90', seed_time_seconds: 56.9, heat_number: 1, lane_number: 4 },
+        { id: ids.avaEntry, event_id: standardEvents[1].id, swimmer_id: ids.ava, swimmer_name: 'Ava Morgan', seed_time: '58.40', seed_time_seconds: 58.4, heat_number: 1, lane_number: 3 },
+        { id: ids.liamEntry, event_id: standardEvents[1].id, swimmer_id: ids.liam, swimmer_name: 'Liam Chen', seed_time: '56.90', seed_time_seconds: 56.9, heat_number: 1, lane_number: 4 },
     ]
     const heatResult = await (supabase.from('heat_entries' as any) as any).upsert(entryRows)
     const meetEntriesResult = await (supabase.from('meet_entries' as any) as any).upsert(entryRows)

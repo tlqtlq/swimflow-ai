@@ -1,9 +1,0 @@
-(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[702],{6184:function(e,t,r){Promise.resolve().then(r.bind(r,8249))},8249:function(e,t,r){"use strict";r.r(t),r.d(t,{default:function(){return PaymentStatus}});var n=r(7437),o=r(2265);function PaymentStatus(e){let{status:t,meetId:r}=e,[s,u]=(0,o.useState)(!!t);return((0,o.useEffect)(()=>{if(!t)return;let e=window.setTimeout(()=>u(!1),7e3);return()=>window.clearTimeout(e)},[t]),s)?(0,n.jsxs)("div",{role:"status",className:"fixed right-4 top-4 z-50 max-w-sm rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 shadow-lg",children:["success"===t?"Payment successful".concat(r?" for meet ".concat(r.slice(0,8),"..."):"",". Your SwimFlow.ai portal is published."):"Checkout is processing. Refresh shortly to confirm payment.",(0,n.jsx)("button",{type:"button",onClick:()=>u(!1),className:"ml-3 font-semibold",children:"Dismiss"})]}):null}},622:function(e,t,r){"use strict";/**
- * @license React
- * react-jsx-runtime.production.min.js
- *
- * Copyright (c) Meta Platforms, Inc. and affiliates.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- */var n=r(2265),o=Symbol.for("react.element"),s=Symbol.for("react.fragment"),u=Object.prototype.hasOwnProperty,i=n.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentOwner,c={key:!0,ref:!0,__self:!0,__source:!0};function q(e,t,r){var n,s={},l=null,a=null;for(n in void 0!==r&&(l=""+r),void 0!==t.key&&(l=""+t.key),void 0!==t.ref&&(a=t.ref),t)u.call(t,n)&&!c.hasOwnProperty(n)&&(s[n]=t[n]);if(e&&e.defaultProps)for(n in t=e.defaultProps)void 0===s[n]&&(s[n]=t[n]);return{$$typeof:o,type:e,key:l,ref:a,props:s,_owner:i.current}}t.Fragment=s,t.jsx=q,t.jsxs=q},7437:function(e,t,r){"use strict";e.exports=r(622)}},function(e){e.O(0,[971,472,744],function(){return e(e.s=6184)}),_N_E=e.O()}]);

@@ -33,6 +33,7 @@ export type Meet = {
     stripe_customer_id: string | null
     stripe_checkout_session_id: string | null
     paid_until: string | null
+    accent_color: string | null
     created_at: string
 }
 
