@@ -25,7 +25,7 @@ export default function TestCheckoutButton({ meetId }: { meetId: string }) {
     return <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4">
         <p className="text-sm font-semibold text-amber-900">Test Checkout</p>
         <p className="mt-1 text-sm text-amber-800">Opens Stripe test mode for this meet at the single-meet price.</p>
-        <button type="button" onClick={startCheckout} disabled={loading} className="mt-3 rounded-lg bg-amber-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-60">{loading ? 'Opening Stripe...' : 'Test $49 Checkout'}</button>
+        <button type="button" onClick={startCheckout} disabled={loading} className="mt-3 rounded-lg bg-[#003296] px-3 py-2 text-sm font-medium text-white hover:bg-[#002878] disabled:opacity-60">{loading ? 'Opening Stripe...' : 'Checkout'}</button>
         {message ? <p className="mt-2 text-xs text-red-700">{message}</p> : null}
     </div>
 }

@@ -22,7 +22,7 @@ export default function MeetBillingControls({ meetId, paidUntil, isPublished }: 
     }
     const paid = paidUntil && new Date(paidUntil) > new Date()
     return <div className="flex flex-wrap items-center justify-end gap-2">
-        {paid ? <button type="button" disabled={loading || isPublished} onClick={publish} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:cursor-default disabled:opacity-80">{isPublished ? 'Published' : 'Publish portal'}</button> : <><button type="button" disabled={loading} onClick={() => checkout('single')} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">Buy meet pass $49</button><button type="button" disabled={loading} onClick={() => checkout('annual')} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white">Upgrade annual $499</button></>}
+        {paid ? <a href={`/meets/${meetId}/checkout`} className="rounded-lg bg-[#003296] px-3 py-2 text-sm font-medium text-white hover:bg-[#002878]">{isPublished ? 'Manage Subscription' : 'Publish portal'}</a> : <a href={`/meets/${meetId}/checkout`} className="rounded-lg bg-[#003296] px-3 py-2 text-sm font-medium text-white hover:bg-[#002878]">Checkout</a>}
         {message ? <span className="w-full text-right text-xs text-slate-500">{message}</span> : null}
     </div>
 }

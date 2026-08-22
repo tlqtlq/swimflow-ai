@@ -62,6 +62,8 @@ create table if not exists heat_entries (
   event_id uuid not null references events(id) on delete cascade,
   swimmer_id uuid not null references swimmers(id) on delete cascade,
   swimmer_name text,
+  team_code text,
+  gender text,
   seed_time text,
   seed_time_seconds double precision,
   seed_course text check (seed_course in ('SCY', 'LCM')),
@@ -82,6 +84,8 @@ create table if not exists meet_entries (
   event_id uuid not null references events(id) on delete cascade,
   swimmer_id uuid not null references swimmers(id) on delete cascade,
   swimmer_name text,
+  team_code text,
+  gender text,
   seed_time text,
   seed_time_seconds double precision,
   seed_course text check (seed_course in ('SCY', 'LCM')),
@@ -120,6 +124,10 @@ alter table heat_entries add column if not exists place integer;
 alter table heat_entries add column if not exists is_personal_record boolean not null default false;
 alter table heat_entries add column if not exists scored_at timestamptz;
 alter table meet_entries add column if not exists result_time text;
+alter table heat_entries add column if not exists team_code text;
+alter table heat_entries add column if not exists gender text;
+alter table meet_entries add column if not exists team_code text;
+alter table meet_entries add column if not exists gender text;
 alter table meet_entries add column if not exists result_time_seconds double precision;
 alter table meet_entries add column if not exists place integer;
 alter table meet_entries add column if not exists is_personal_record boolean not null default false;
