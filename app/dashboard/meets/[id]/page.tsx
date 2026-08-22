@@ -7,6 +7,7 @@ import MeetSettings from '@/components/MeetSettings'
 import { getPortalUrl } from '@/lib/app-url'
 import RosterImportModal from '@/components/RosterImportModal'
 import MeetCustomization from '@/components/MeetCustomization'
+import MeetDashboardHeader from '@/components/MeetDashboardHeader'
 
 export default async function MeetDashboardPage({ params, searchParams }: { params: { id: string }; searchParams?: { payment?: string } }) {
     const supabase = createSupabaseServerClient()
@@ -21,7 +22,7 @@ export default async function MeetDashboardPage({ params, searchParams }: { para
     ])
 
     const meet = (meetResult.data ?? null) as { id?: string; name?: string; location?: string | null; location_id?: string | null; course_type?: 'SCY' | 'LCM' | 'SCM'; meet_date?: string | null; paid_until?: string | null; payment_status?: string; is_published?: boolean; status?: string; accent_color?: string | null; current_event_id?: string | null; current_heat_number?: number; current_heat?: number } | null
-    const isLive = meet?.status === 'live' || meet?.is_published
+    const isLive = meet?.status === 'live' || Boolean(meet?.is_published)
     const events = ((eventsResult.data ?? []) as Array<{ id: string; name: string; course?: string }>)
     const locations = ((locationsResult.data ?? []) as Array<{ id: string; name: string; address: string | null; course_type_default: 'SCY' | 'LCM' | 'SCM' }>)
     const eventIds = events.map((event) => event.id)
@@ -33,14 +34,7 @@ export default async function MeetDashboardPage({ params, searchParams }: { para
         <div className="mx-auto max-w-6xl space-y-8 py-8">
             <PaymentStatus status={searchParams?.payment} meetId={params.id} />
             {!(meet?.payment_status === 'paid' && meet.paid_until && new Date(meet.paid_until) > new Date()) ? <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-blue-200 bg-blue-50 p-4"><div><p className="font-semibold text-blue-950">This meet is currently an unpublished draft.</p><p className="text-sm text-blue-800">Complete payment to publish the live spectator portal.</p></div><a href={`/meets/${params.id}/checkout`} className="rounded-lg bg-[#003296] px-4 py-2 text-sm font-medium text-white hover:bg-[#002878]">Pay to Publish</a></section> : null}
-            <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <p className="text-sm font-medium uppercase tracking-[0.16em] text-sky-600">Meet dashboard</p>
-                <div className="mt-2 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-semibold text-slate-900">{meet?.name ?? 'Meet Details'}</h1>{isLive ? <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400"><span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" /></span>Live</div> : null}</div>
-                <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
-                    <p className="text-slate-600">{meet?.location ?? 'No location'} · {meet?.meet_date ?? 'No date'} · {meet?.course_type ?? 'SCY'}</p>
-                    <MeetBillingControls meetId={params.id} paidUntil={meet?.paid_until} isPublished={meet?.is_published} />
-                </div>
-            </header>
+            <div className="relative"><MeetDashboardHeader initialMeet={{ name: meet?.name ?? 'Meet Details', location: meet?.location ?? null, date: meet?.meet_date ?? null, accentColor: meet?.accent_color ?? null }} isLive={isLive} /><div className="absolute bottom-6 right-6"><MeetBillingControls meetId={params.id} paidUntil={meet?.paid_until} isPublished={meet?.is_published} /></div></div>
 
             <nav className="flex flex-wrap items-center gap-2 text-sm">
                 <RosterImportModal meetId={params.id} />
