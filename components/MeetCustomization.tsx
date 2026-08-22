@@ -13,6 +13,7 @@ export default function MeetCustomization({ meetId, name, location, date, accent
     const [message, setMessage] = useState('')
     const [saving, setSaving] = useState(false)
     const saveTimer = useRef<number | null>(null)
+    const latestSaveId = useRef(0)
 
     useEffect(() => {
         setMeetName(name)
@@ -32,6 +33,7 @@ export default function MeetCustomization({ meetId, name, location, date, accent
     }
 
     const save = async (draft = { name: meetName, location: meetLocation, date: meetDate, accentColor: color }, showMessage = true) => {
+        const saveId = ++latestSaveId.current
         setSaving(true)
         try {
             const response = await fetch('/api/meets/settings', {
@@ -48,22 +50,23 @@ export default function MeetCustomization({ meetId, name, location, date, accent
                 }),
             })
             const result = await response.json() as { message?: string; meet?: { name?: string; location?: string | null; meetDate?: string | null; accentColor?: string | null } }
+            if (saveId !== latestSaveId.current) return
             if (showMessage || !response.ok) setMessage(response.ok ? 'Meet settings saved.' : result.message ?? 'Unable to save meet settings.')
             if (response.ok) {
                 const savedDraft = { name: result.meet?.name ?? draft.name, location: result.meet?.location ?? draft.location, date: result.meet?.meetDate ?? draft.date, accentColor: result.meet?.accentColor ?? draft.accentColor }
                 publishDraft(savedDraft)
-                if (showMessage) router.refresh()
             }
         } catch {
             setMessage('Unable to save meet settings.')
         } finally {
-            setSaving(false)
+            if (saveId === latestSaveId.current) setSaving(false)
         }
     }
 
     const queueSave = (draft: { name: string; location: string; date: string; accentColor: string }) => {
         publishDraft(draft)
         if (saveTimer.current) window.clearTimeout(saveTimer.current)
+        latestSaveId.current += 1
         saveTimer.current = window.setTimeout(() => void save(draft, false), 350)
     }
 
