@@ -24,6 +24,7 @@ create table if not exists meets (
   location text,
   course_type text not null default 'SCY' check (course_type in ('SCY', 'LCM', 'SCM')),
   meet_date date,
+  accent_color text not null default '#003296',
   status text not null default 'draft' check (status in ('draft', 'published', 'live', 'completed')),
   is_published boolean not null default false,
   payment_status text not null default 'unpaid' check (payment_status in ('unpaid', 'pending', 'paid')),
@@ -111,6 +112,7 @@ alter table meets add column if not exists current_heat_number integer not null 
 alter table meets add column if not exists current_heat integer not null default 1;
 alter table meets add column if not exists location_id uuid;
 alter table meets add column if not exists course_type text not null default 'SCY';
+alter table meets add column if not exists accent_color text not null default '#003296';
 do $$
 begin
   begin

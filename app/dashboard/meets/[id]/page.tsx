@@ -6,6 +6,7 @@ import DeckController from '@/components/DeckController'
 import MeetSettings from '@/components/MeetSettings'
 import { getPortalUrl } from '@/lib/app-url'
 import RosterImportModal from '@/components/RosterImportModal'
+import MeetCustomization from '@/components/MeetCustomization'
 
 export default async function MeetDashboardPage({ params, searchParams }: { params: { id: string }; searchParams?: { payment?: string } }) {
     const supabase = createSupabaseServerClient()
@@ -19,7 +20,7 @@ export default async function MeetDashboardPage({ params, searchParams }: { para
         (supabase.from('locations' as any) as any).select('*').order('name'),
     ])
 
-    const meet = (meetResult.data ?? null) as { id?: string; name?: string; location?: string | null; location_id?: string | null; course_type?: 'SCY' | 'LCM' | 'SCM'; meet_date?: string | null; paid_until?: string | null; payment_status?: string; is_published?: boolean; current_event_id?: string | null; current_heat_number?: number; current_heat?: number } | null
+    const meet = (meetResult.data ?? null) as { id?: string; name?: string; location?: string | null; location_id?: string | null; course_type?: 'SCY' | 'LCM' | 'SCM'; meet_date?: string | null; paid_until?: string | null; payment_status?: string; is_published?: boolean; accent_color?: string | null; current_event_id?: string | null; current_heat_number?: number; current_heat?: number } | null
     const events = ((eventsResult.data ?? []) as Array<{ id: string; name: string; course?: string }>)
     const locations = ((locationsResult.data ?? []) as Array<{ id: string; name: string; address: string | null; course_type_default: 'SCY' | 'LCM' | 'SCM' }>)
     const eventIds = events.map((event) => event.id)
@@ -49,6 +50,7 @@ export default async function MeetDashboardPage({ params, searchParams }: { para
             </nav>
 
             <MeetPortalQr meetId={meet?.id ?? params.id} meetName={meet?.name ?? 'Swim meet'} />
+            <MeetCustomization meetId={params.id} name={meet?.name ?? 'Swim meet'} location={meet?.location} date={meet?.meet_date} accentColor={meet?.accent_color} />
             <MeetSettings meetId={params.id} courseType={meet?.course_type ?? 'SCY'} locationId={meet?.location_id} locations={locations} />
             <DeckController meetId={params.id} events={events.map((event) => ({ id: event.id, name: event.name, course: event.course }))} entries={eventEntries} currentEventId={meet?.current_event_id} currentHeat={meet?.current_heat ?? meet?.current_heat_number ?? 1} courseType={meet?.course_type ?? 'SCY'} />
 

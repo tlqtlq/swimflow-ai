@@ -25,7 +25,7 @@ For Twilio SMS alerts, also set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `
 3. Open `/dashboard/meets/<meet-id>`, select an event, and open its scorekeeper link. Choose a heat, enter times such as `54.12`, and save official results. Places update as times are entered.
 4. Open `/dashboard/meets/<meet-id>/print` for a heat sheet or add `?view=results` for result sheets. Use **Print / Save PDF** and choose **Save as PDF** in the browser dialog.
 5. Open `/dashboard/meets/<meet-id>/summary` after scoring to calculate PRs, event winners, and team points, then generate the press release.
-6. Choose **Pay $49 / meet** or **Annual pass $499** from the meet dashboard. Use Stripe test mode, complete Checkout, then return and select **Publish portal**. The public portal is `/portal/<meet-id>`.
+6. Choose the **$34.99 single meet license** or **$299.99 annual unlimited pass** from the meet dashboard. Use Stripe test mode, complete Checkout, then return and select **Publish portal**. The public portal is `/portal/<meet-id>`.
 
 Stripe Checkout uses the success redirect for local testing. Production should also add a Stripe webhook to handle delayed or out-of-band payment events.
 

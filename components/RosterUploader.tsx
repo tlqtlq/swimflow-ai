@@ -9,6 +9,7 @@ export default function RosterUploader({ meetId }: { meetId: string }) {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [result, setResult] = useState<ParsedRoster | null>(null)
     const [error, setError] = useState('')
+    const [summary, setSummary] = useState<{ swimmers: number; heats: Record<string, number> } | null>(null)
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -28,6 +29,7 @@ export default function RosterUploader({ meetId }: { meetId: string }) {
         try {
             const parsed = await parseRosterAction(formData, meetId)
             setResult(parsed)
+            setSummary({ swimmers: parsed.swimmers.length, heats: Object.fromEntries(parsed.swimmers.flatMap((swimmer) => swimmer.events.map((event) => event.name)).reduce((counts, eventName) => counts.set(eventName, (counts.get(eventName) ?? 0) + 1), new Map<string, number>())) })
         } catch (caughtError) {
             setError(caughtError instanceof Error ? caughtError.message : 'Unable to parse roster.')
             setResult(null)
@@ -67,12 +69,12 @@ export default function RosterUploader({ meetId }: { meetId: string }) {
                         input.files = dataTransfer.files
                     }}
                 >
-                    <input type="file" name="file" accept=".csv,.pdf,.txt" className="hidden" />
+                    <input type="file" name="file" accept=".csv,.hy3" className="hidden" />
                     <div className="mb-3 rounded-full bg-white p-3 shadow-sm">
                         <span className="text-lg">📁</span>
                     </div>
                     <p className="text-base font-medium text-slate-800">Drag and drop a roster here</p>
-                    <p className="mt-1 text-sm text-slate-500">or click to select CSV/PDF files</p>
+                    <p className="mt-1 text-sm text-slate-500">or click to select CSV/HY3 files</p>
                 </label>
 
                 <button
@@ -105,6 +107,7 @@ export default function RosterUploader({ meetId }: { meetId: string }) {
                     {result.swimmers.length > 6 ? <p className="mt-2 text-xs text-slate-500">+{result.swimmers.length - 6} more swimmers found</p> : null}
                 </div>
             ) : null}
+            {summary ? <div className="rounded-xl border border-emerald-200 bg-emerald-600 p-4 font-bold text-white shadow-xl"><p>{summary.swimmers} swimmers loaded</p><p className="mt-1 text-sm">Heat distribution: {Object.entries(summary.heats).map(([event, count]) => `${event}: ${count}`).join(' · ') || 'No events detected'}</p></div> : null}
         </div>
     )
 }
