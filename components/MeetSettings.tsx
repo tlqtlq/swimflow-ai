@@ -1,0 +1,41 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+
+type LocationOption = { id: string; name: string; address: string | null; course_type_default: 'SCY' | 'LCM' | 'SCM' }
+type AddressSuggestion = { place_id: number; name?: string; display_name: string }
+
+export default function MeetSettings({ meetId, courseType, locationId, locations }: { meetId: string; courseType: 'SCY' | 'LCM' | 'SCM'; locationId?: string | null; locations: LocationOption[] }) {
+    const [course, setCourse] = useState(courseType)
+    const [selectedLocation, setSelectedLocation] = useState(locationId ?? '')
+    const [locationName, setLocationName] = useState('')
+    const [address, setAddress] = useState('')
+    const [addressQuery, setAddressQuery] = useState('')
+    const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([])
+    const [message, setMessage] = useState('')
+    useEffect(() => {
+        if (addressQuery.trim().length < 3) { setSuggestions([]); return }
+        const controller = new AbortController()
+        const timer = window.setTimeout(async () => {
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q=${encodeURIComponent(addressQuery.trim())}`, { signal: controller.signal, headers: { Accept: 'application/json' } })
+                if (response.ok) setSuggestions(await response.json() as AddressSuggestion[])
+            } catch (error) {
+                if ((error as Error).name !== 'AbortError') setSuggestions([])
+            }
+        }, 300)
+        return () => { controller.abort(); window.clearTimeout(timer) }
+    }, [addressQuery])
+    const save = async (nextLocationName = locationName, nextAddress = address, nextLocationId = selectedLocation) => {
+        const response = await fetch('/api/meets/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ meetId, courseType: course, locationId: nextLocationId || undefined, locationName: nextLocationName, address: nextAddress }) })
+        const result = await response.json()
+        setMessage(response.ok ? 'Meet settings saved.' : result.message ?? 'Unable to save settings.')
+        if (result.locationId) setSelectedLocation(result.locationId)
+    }
+    const selectSuggestion = (suggestion: AddressSuggestion) => {
+        const nextName = suggestion.name?.trim() || suggestion.display_name.split(',')[0].trim()
+        setLocationName(nextName); setAddress(suggestion.display_name); setAddressQuery(suggestion.display_name); setSuggestions([])
+        void save(nextName, suggestion.display_name, '')
+    }
+    return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-semibold uppercase tracking-[0.14em] text-sky-600">Meet setup</p><h2 className="mt-1 text-xl font-semibold text-slate-900">Course & venue</h2></div><button type="button" onClick={() => void save()} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white">Save settings</button></div><div className="mt-4 grid gap-4 md:grid-cols-2"><label className="text-sm font-medium text-slate-700">Course type<select value={course} onChange={(event) => setCourse(event.target.value as 'SCY' | 'LCM' | 'SCM')} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="SCY">SCY - Short Course Yards</option><option value="LCM">LCM - Long Course Meters</option><option value="SCM">SCM - Short Course Meters</option></select></label><label className="text-sm font-medium text-slate-700">Saved location<select value={selectedLocation} onChange={(event) => setSelectedLocation(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">Type a new location</option>{locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select></label></div><div className="relative mt-4"><label className="text-sm font-medium text-slate-700">Search address<input value={addressQuery} onChange={(event) => setAddressQuery(event.target.value)} placeholder="Search a pool, venue, or street address" autoComplete="off" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>{suggestions.length > 0 ? <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">{suggestions.map((suggestion) => <button key={suggestion.place_id} type="button" onClick={() => selectSuggestion(suggestion)} className="block w-full border-b border-slate-100 px-3 py-2 text-left text-sm text-slate-700 last:border-0 hover:bg-slate-50">{suggestion.name ? <strong className="block text-slate-900">{suggestion.name}</strong> : null}<span>{suggestion.display_name}</span></button>)}</div> : null}</div><div className="mt-4 grid gap-4 md:grid-cols-2"><label className="text-sm font-medium text-slate-700">New venue name<input value={locationName} onChange={(event) => setLocationName(event.target.value)} placeholder="Central HS Aquatic Center" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label><label className="text-sm font-medium text-slate-700">Address<input value={address} onChange={(event) => setAddress(event.target.value)} placeholder="123 Pool Way, Miami, FL" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label></div><p aria-live="polite" className="mt-3 text-xs text-slate-500">{message}</p></section>
+}

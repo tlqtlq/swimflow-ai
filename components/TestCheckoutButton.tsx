@@ -1,0 +1,31 @@
+'use client'
+
+import { useState } from 'react'
+
+export default function TestCheckoutButton({ meetId }: { meetId: string }) {
+    const [loading, setLoading] = useState(false)
+    const [message, setMessage] = useState('')
+    const startCheckout = async () => {
+        setLoading(true)
+        setMessage('')
+        try {
+            const response = await fetch('/api/checkout', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ meetId, planType: 'single' }),
+            })
+            const payload = await response.json()
+            if (!response.ok || !payload.url) throw new Error(payload.message || 'Unable to start checkout.')
+            window.location.assign(payload.url)
+        } catch (error) {
+            setMessage(error instanceof Error ? error.message : 'Unable to start checkout.')
+            setLoading(false)
+        }
+    }
+    return <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4">
+        <p className="text-sm font-semibold text-amber-900">Test Checkout</p>
+        <p className="mt-1 text-sm text-amber-800">Opens Stripe test mode for this meet at the single-meet price.</p>
+        <button type="button" onClick={startCheckout} disabled={loading} className="mt-3 rounded-lg bg-amber-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-60">{loading ? 'Opening Stripe...' : 'Test $49 Checkout'}</button>
+        {message ? <p className="mt-2 text-xs text-red-700">{message}</p> : null}
+    </div>
+}
