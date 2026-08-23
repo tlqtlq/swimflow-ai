@@ -25,12 +25,14 @@ export default async function MeetDashboardPage({ params, searchParams }: { para
     const meet = (meetResult.data ?? null) as { id?: string; name?: string; location?: string | null; location_id?: string | null; course_type?: 'SCY' | 'LCM' | 'SCM'; meet_date?: string | null; paid_until?: string | null; payment_status?: string; is_published?: boolean; status?: string; accent_color?: string | null; current_event_id?: string | null; current_heat_number?: number; current_heat?: number } | null
     const isLive = meet?.status === 'live' || Boolean(meet?.is_published)
     const events = ((eventsResult.data ?? []) as Array<{ id: string; name: string; course?: string }>)
-    const locations = ((locationsResult.data ?? []) as Array<{ id: string; name: string; address: string | null; course_type_default: 'SCY' | 'LCM' | 'SCM' }>)
-    const eventIds = events.map((event) => event.id)
-    const eventEntries = (eventIds.length
-        ? (await supabase.from('meet_entries').select('*').in('event_id', eventIds).order('heat_number', { ascending: true, nullsFirst: true }).order('lane_number', { ascending: true, nullsFirst: true })).data ?? []
-        : []) as Array<{ id: string; event_id: string; swimmer_name?: string | null; heat_number?: number | null; heat?: number | null; lane_number?: number | null; lane?: number | null; result_time?: string | null }>
     const rosterEntries = ((await (supabase.from('entries') as any).select('id, event_name, swimmer_name, team_code, seed_time').eq('meet_id', params.id).order('event_name').order('swimmer_name')).data ?? []) as Array<{ id: string; event_name: string; swimmer_name: string; team_code?: string | null; seed_time?: string | null }>
+    const activeEventNames = new Set(rosterEntries.map((entry) => entry.event_name).filter(Boolean))
+    const activeEvents = events.filter((event) => activeEventNames.has(event.name))
+    const locations = ((locationsResult.data ?? []) as Array<{ id: string; name: string; address: string | null; course_type_default: 'SCY' | 'LCM' | 'SCM' }>)
+    const eventIds = activeEvents.map((event) => event.id)
+    const eventEntries = (eventIds.length
+        ? (await supabase.from('meet_entries').select('*').in('event_id', eventIds).not('heat_number', 'is', null).order('heat_number', { ascending: true }).order('lane_number', { ascending: true })).data ?? []
+        : []) as Array<{ id: string; event_id: string; swimmer_name?: string | null; heat_number?: number | null; heat?: number | null; lane_number?: number | null; lane?: number | null; result_time?: string | null }>
     const rosterByEvent = rosterEntries.reduce<Record<string, typeof rosterEntries>>((groups, entry) => {
         const eventName = entry.event_name || 'Unassigned event'
         groups[eventName] = [...(groups[eventName] ?? []), entry]
@@ -59,10 +61,10 @@ export default async function MeetDashboardPage({ params, searchParams }: { para
                     <MeetPortalQr meetId={meet?.id ?? params.id} meetName={meet?.name ?? 'Swim meet'} />
                 </div>
             </section>
-            <DeckController meetId={params.id} events={events.map((event) => ({ id: event.id, name: event.name, course: event.course }))} entries={eventEntries} currentEventId={meet?.current_event_id} currentHeat={meet?.current_heat ?? meet?.current_heat_number ?? 1} courseType={meet?.course_type ?? 'SCY'} />
+            <DeckController meetId={params.id} events={activeEvents.map((event) => ({ id: event.id, name: event.name, course: event.course }))} entries={eventEntries} currentEventId={meet?.current_event_id} currentHeat={meet?.current_heat ?? meet?.current_heat_number ?? 1} courseType={meet?.course_type ?? 'SCY'} />
 
             <section className="grid gap-5 md:grid-cols-2">
-                {events.length === 0 ? (
+                {activeEvents.length === 0 ? (
                     <div className="flex flex-col items-center rounded-xl border border-slate-200/80 bg-white px-6 py-12 text-center shadow-sm md:col-span-2">
                         <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-100 text-slate-600"><ClipboardList size={22} aria-hidden="true" /></span>
                         <h2 className="mt-4 text-xl font-semibold text-slate-900">No Heats or Swimmers Loaded</h2>
@@ -70,7 +72,7 @@ export default async function MeetDashboardPage({ params, searchParams }: { para
                         <div className="mt-6"><RosterImportModal meetId={params.id} /></div>
                     </div>
                 ) : (
-                    events.map((event) => {
+                    activeEvents.map((event) => {
                         const eventRows = eventEntries.filter((entry) => entry.event_id === event.id)
                         return (
                             <article key={event.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

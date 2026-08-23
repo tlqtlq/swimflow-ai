@@ -1,4 +1,5 @@
 import { createSupabaseAdminClient } from '@/lib/supabase'
+import { seedHeatEntries } from '@/lib/seeding'
 
 export type ParsedRoster = {
     swimmers: Array<{
@@ -54,67 +55,101 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
 
     if (!entryRows.length) return { attemptedRows: 0, importedRows: 0, failedRows: 0 }
 
-    const entryResult = await (supabase.from('entries' as any) as any).insert(entryRows).select('id')
-    const importedRows = entryResult.error ? 0 : (entryResult.data?.length ?? entryRows.length)
+    const uniqueEntryRows = Array.from(new Map(entryRows.map((entry) => [
+        `${entry.swimmer_name.toLocaleLowerCase()}-${entry.event_name.toLocaleLowerCase()}`,
+        entry,
+    ])).values())
+    const eventNames = new Set(uniqueEntryRows.map((entry) => entry.event_name))
+
+    const { error: deleteEntriesError } = await (supabase.from('entries' as any) as any).delete().eq('meet_id', meetId)
+    if (deleteEntriesError) throw new Error(deleteEntriesError.message)
+
+    const { data: existingEvents, error: existingEventsError } = await (supabase.from('events' as any) as any).select('id').eq('meet_id', meetId)
+    if (existingEventsError) throw new Error(existingEventsError.message)
+    const existingEventIds = (existingEvents ?? []).map((event: { id: string }) => event.id)
+    if (existingEventIds.length) {
+        const { error: deleteMeetEntriesError } = await (supabase.from('meet_entries' as any) as any).delete().in('event_id', existingEventIds)
+        if (deleteMeetEntriesError) throw new Error(deleteMeetEntriesError.message)
+        const { error: deleteHeatEntriesError } = await (supabase.from('heat_entries' as any) as any).delete().in('event_id', existingEventIds)
+        if (deleteHeatEntriesError) throw new Error(deleteHeatEntriesError.message)
+    }
+    const { error: deleteEventsError } = await (supabase.from('events' as any) as any).delete().eq('meet_id', meetId)
+    if (deleteEventsError) throw new Error(deleteEventsError.message)
+
+    const entryResult = await (supabase.from('entries' as any) as any).insert(uniqueEntryRows).select('id')
+    if (entryResult.error) throw new Error(entryResult.error.message)
+
+    const rosterByEvent = new Map<string, Array<typeof uniqueEntryRows[number]>>()
+    for (const entry of uniqueEntryRows) {
+        rosterByEvent.set(entry.event_name, [...(rosterByEvent.get(entry.event_name) ?? []), entry])
+    }
+
     let seededRows = 0
-    const eventIdsByName = new Map<string, string>()
+    let firstEventId: string | null = null
+    for (const [eventName, eventRoster] of rosterByEvent) {
+        const sourceRoster = parsed.swimmers.flatMap((swimmer) => swimmer.events
+            .filter((event) => (event.name.trim() || 'Unknown Event') === eventName)
+            .map((event) => ({ swimmer, event })))
+        const course = sourceRoster[0]?.event.course === 'LCM' ? 'LCM' : 'SCY'
+        const eventResult = await (supabase.from('events' as any) as any).insert({ meet_id: meetId, name: eventName, course, heat_count: Math.ceil(eventRoster.length / 8) }).select('id').single()
+        if (eventResult.error || !eventResult.data?.id) throw new Error(eventResult.error?.message ?? 'Unable to create event.')
+        const eventId = eventResult.data.id as string
+        firstEventId ??= eventId
 
-    for (const swimmer of parsed.swimmers) {
-        const fullName = swimmer.swimmerName?.trim() || ''
-        const [derivedFirstName = '', ...derivedLastName] = fullName.split(/\s+/).filter(Boolean)
-        const firstName = swimmer.firstName?.trim() || derivedFirstName || null
-        const lastName = swimmer.lastName?.trim() || derivedLastName.join(' ') || null
-        if (!firstName && !lastName) continue
-
-        const swimmerResult = await (supabase.from('swimmers' as any) as any).insert({
-            organization_id: meet.organization_id,
-            first_name: firstName,
-            last_name: lastName,
-            age: swimmer.age ?? null,
-            grade: swimmer.grade ?? null,
-        }).select('id').single()
-        if (swimmerResult.error || !swimmerResult.data) continue
-
-        for (const eventEntry of swimmer.events) {
-            const eventName = eventEntry.name.trim() || 'Unknown Event'
-            const course = eventEntry.course === 'LCM' ? 'LCM' : 'SCY'
-            let eventId = eventIdsByName.get(eventName)
-            if (!eventId) {
-                const eventResult = await (supabase.from('events' as any) as any).insert({ meet_id: meetId, name: eventName, course, heat_count: 1 }).select('id').single()
-                if (eventResult.error || !eventResult.data) continue
-                const createdEventId = eventResult.data.id as string
-                eventId = createdEventId
-                eventIdsByName.set(eventName, createdEventId)
+        const seededHeats = seedHeatEntries(eventRoster.map((entry) => ({
+            id: entry.swimmer_name,
+            name: entry.swimmer_name,
+            seedTime: entry.seed_time,
+            seedTimeSeconds: parseSeedTimeSeconds(entry.seed_time),
+        })), 8)
+        const seededRowsForEvent = seededHeats.flatMap((heat) => heat.entries.map((assignment) => {
+            const rosterEntry = eventRoster.find((entry) => entry.swimmer_name === assignment.swimmer.id)
+            return {
+                rosterEntry,
+                heatNumber: heat.heatNumber,
+                laneNumber: assignment.lane,
             }
+        }))
 
-            const seedTime = eventEntry.seedTime ?? null
+        for (const seeded of seededRowsForEvent) {
+            if (!seeded.rosterEntry) continue
+            const [firstName = '', ...lastName] = seeded.rosterEntry.swimmer_name.split(/\s+/).filter(Boolean)
+            const swimmerResult = await (supabase.from('swimmers' as any) as any).insert({
+                organization_id: meet.organization_id,
+                first_name: firstName || null,
+                last_name: lastName.join(' ') || null,
+                age: seeded.rosterEntry.age,
+            }).select('id').single()
+            if (swimmerResult.error || !swimmerResult.data?.id) throw new Error(swimmerResult.error?.message ?? 'Unable to create swimmer.')
+
             const eventRow = {
                 event_id: eventId,
                 swimmer_id: swimmerResult.data.id,
-                swimmer_name: `${firstName ?? ''} ${lastName ?? ''}`.trim() || 'Swimmer',
-                team_code: swimmer.teamCode ?? null,
-                gender: swimmer.gender ?? null,
-                seed_time: seedTime,
-                seed_time_seconds: parseSeedTimeSeconds(seedTime),
+                swimmer_name: seeded.rosterEntry.swimmer_name,
+                team_code: seeded.rosterEntry.team_code,
+                gender: seeded.rosterEntry.gender,
+                seed_time: seeded.rosterEntry.seed_time,
+                seed_time_seconds: parseSeedTimeSeconds(seeded.rosterEntry.seed_time),
                 seed_course: course,
-                lane: null,
-                heat: null,
-                lane_number: null,
-                heat_number: null,
+                lane: seeded.laneNumber,
+                heat: seeded.heatNumber,
+                lane_number: seeded.laneNumber,
+                heat_number: seeded.heatNumber,
             }
-
             const [heatResult, meetEntryResult] = await Promise.all([
                 (supabase.from('heat_entries' as any) as any).insert(eventRow),
                 (supabase.from('meet_entries' as any) as any).insert(eventRow),
             ])
-
-            if (!meetEntryResult.error) seededRows += 1
-            void heatResult
+            if (heatResult.error || meetEntryResult.error) throw new Error(heatResult.error?.message ?? meetEntryResult.error?.message ?? 'Unable to seed heat entries.')
+            seededRows += 1
         }
     }
 
-    const savedRows = seededRows || importedRows
-    if (!savedRows) throw new Error(entryResult.error?.message ?? 'Roster rows could not be seeded for this meet.')
+    if (firstEventId) {
+        const { error: meetUpdateError } = await (supabase.from('meets' as any) as any).update({ current_event_id: firstEventId, current_heat: 1, current_heat_number: 1 }).eq('id', meetId)
+        if (meetUpdateError) throw new Error(meetUpdateError.message)
+    }
 
-    return { attemptedRows, importedRows: savedRows, failedRows: attemptedRows - savedRows }
+    if (!seededRows) throw new Error('Roster rows could not be seeded for this meet.')
+    return { attemptedRows: uniqueEntryRows.length, importedRows: seededRows, failedRows: uniqueEntryRows.length - seededRows }
 }
