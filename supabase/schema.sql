@@ -264,6 +264,10 @@ create policy "heat_announcements_public_select" on heat_announcements
 do $$
 begin
   begin
+    alter publication supabase_realtime add table meets;
+  exception when duplicate_object then null;
+  end;
+  begin
     alter publication supabase_realtime add table meet_entries;
   exception when duplicate_object then null;
   end;

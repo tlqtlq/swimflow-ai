@@ -60,14 +60,16 @@ const parseRosterFile = (content: string): ParsedRoster => {
         seedTime: ['seedtime'],
         course: ['course'],
     }
-    const headers = parseCsvRow(lines[0]).map((header) => header.toLowerCase().replace(/[^a-z0-9]/g, ''))
+    const firstRow = parseCsvRow(lines[0])
+    const headers = firstRow.map((header) => header.toLowerCase().replace(/[^a-z0-9]/g, ''))
+    const hasHeaderRow = headers.some((header) => Object.values(aliases).flat().includes(header))
     const valueAt = (fields: string[], field: keyof typeof aliases, fallback: number) => {
-        const index = headers.findIndex((header) => aliases[field].includes(header))
-        return fields[index >= 0 ? index : fallback]?.trim() ?? ''
+        const index = hasHeaderRow ? headers.findIndex((header) => aliases[field].includes(header)) : fallback
+        return fields[index]?.trim() ?? ''
     }
 
     return {
-        swimmers: lines.slice(1).flatMap((line) => {
+        swimmers: lines.slice(hasHeaderRow ? 1 : 0).flatMap((line) => {
             const fields = parseCsvRow(line)
             if (fields.length < 2) return []
 
@@ -75,9 +77,9 @@ const parseRosterFile = (content: string): ParsedRoster => {
             const [firstFromName = '', ...lastFromName] = swimmerName.split(/\s+/).filter(Boolean)
             const firstName = valueAt(fields, 'firstName', -1) || firstFromName
             const lastName = valueAt(fields, 'lastName', -1) || lastFromName.join(' ')
-            const eventName = valueAt(fields, 'eventName', 2)
-            const seedTime = valueAt(fields, 'seedTime', 3)
-            const course = valueAt(fields, 'course', 4).toUpperCase()
+            const eventName = valueAt(fields, 'eventName', 3)
+            const seedTime = valueAt(fields, 'seedTime', 4)
+            const course = valueAt(fields, 'course', 5).toUpperCase()
             const ageValue = Number(valueAt(fields, 'age', 6))
 
             if (!swimmerName.trim() && !firstName && !lastName) return []
@@ -86,8 +88,8 @@ const parseRosterFile = (content: string): ParsedRoster => {
                 firstName: firstName || null,
                 lastName: lastName || null,
                 age: Number.isFinite(ageValue) ? ageValue : null,
-                teamCode: valueAt(fields, 'teamCode', -1) || null,
-                gender: valueAt(fields, 'gender', -1) || null,
+                teamCode: valueAt(fields, 'teamCode', 1) || null,
+                gender: valueAt(fields, 'gender', 2) || null,
                 events: [{
                     name: eventName || 'Unknown Event',
                     seedTime: seedTime || null,

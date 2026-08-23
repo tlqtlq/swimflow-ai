@@ -30,7 +30,8 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
     const supabase = createSupabaseAdminClient()
     if (!supabase) throw new Error('Supabase is not configured.')
 
-    const { data: meet, error: meetError } = await (supabase.from('meets' as any) as any).select('id, organization_id').eq('id', meetId).single()
+    const { data: meetRows, error: meetError } = await (supabase.from('meets' as any) as any).select('id, organization_id').eq('id', meetId).limit(1)
+    const meet = meetRows?.[0] as { id: string; organization_id: string } | undefined
     if (meetError || !meet) throw new Error(meetError?.message ?? 'Meet not found.')
 
     let attemptedRows = 0
@@ -59,8 +60,6 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
         `${entry.swimmer_name.toLocaleLowerCase()}-${entry.event_name.toLocaleLowerCase()}`,
         entry,
     ])).values())
-    const eventNames = new Set(uniqueEntryRows.map((entry) => entry.event_name))
-
     const { error: deleteEntriesError } = await (supabase.from('entries' as any) as any).delete().eq('meet_id', meetId)
     if (deleteEntriesError) throw new Error(deleteEntriesError.message)
 
@@ -91,9 +90,9 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
             .filter((event) => (event.name.trim() || 'Unknown Event') === eventName)
             .map((event) => ({ swimmer, event })))
         const course = sourceRoster[0]?.event.course === 'LCM' ? 'LCM' : 'SCY'
-        const eventResult = await (supabase.from('events' as any) as any).insert({ meet_id: meetId, name: eventName, course, heat_count: Math.ceil(eventRoster.length / 8) }).select('id').single()
-        if (eventResult.error || !eventResult.data?.id) throw new Error(eventResult.error?.message ?? 'Unable to create event.')
-        const eventId = eventResult.data.id as string
+        const eventResult = await (supabase.from('events' as any) as any).insert({ meet_id: meetId, name: eventName, course, heat_count: Math.ceil(eventRoster.length / 8) }).select('id')
+        const eventId = eventResult.data?.[0]?.id as string | undefined
+        if (eventResult.error || !eventId) throw new Error(eventResult.error?.message ?? 'Unable to create event.')
         firstEventId ??= eventId
 
         const seededHeats = seedHeatEntries(eventRoster.map((entry) => ({
@@ -119,15 +118,14 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
                 first_name: firstName || null,
                 last_name: lastName.join(' ') || null,
                 age: seeded.rosterEntry.age,
-            }).select('id').single()
-            if (swimmerResult.error || !swimmerResult.data?.id) throw new Error(swimmerResult.error?.message ?? 'Unable to create swimmer.')
+            }).select('id')
+            const swimmerId = swimmerResult.data?.[0]?.id as string | undefined
+            if (swimmerResult.error || !swimmerId) throw new Error(swimmerResult.error?.message ?? 'Unable to create swimmer.')
 
             const eventRow = {
                 event_id: eventId,
-                swimmer_id: swimmerResult.data.id,
+                swimmer_id: swimmerId,
                 swimmer_name: seeded.rosterEntry.swimmer_name,
-                team_code: seeded.rosterEntry.team_code,
-                gender: seeded.rosterEntry.gender,
                 seed_time: seeded.rosterEntry.seed_time,
                 seed_time_seconds: parseSeedTimeSeconds(seeded.rosterEntry.seed_time),
                 seed_course: course,
