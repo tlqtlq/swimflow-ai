@@ -57,6 +57,7 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
     const entryResult = await (supabase.from('entries' as any) as any).insert(entryRows).select('id')
     const importedRows = entryResult.error ? 0 : (entryResult.data?.length ?? entryRows.length)
     let seededRows = 0
+    const eventIdsByName = new Map<string, string>()
 
     for (const swimmer of parsed.swimmers) {
         const fullName = swimmer.swimmerName?.trim() || ''
@@ -77,12 +78,18 @@ export async function persistParsedRosterToMeet(parsed: ParsedRoster, meetId: st
         for (const eventEntry of swimmer.events) {
             const eventName = eventEntry.name.trim() || 'Unknown Event'
             const course = eventEntry.course === 'LCM' ? 'LCM' : 'SCY'
-            const eventResult = await (supabase.from('events' as any) as any).insert({ meet_id: meetId, name: eventName, course, heat_count: 1 }).select('id').single()
-            if (eventResult.error || !eventResult.data) continue
+            let eventId = eventIdsByName.get(eventName)
+            if (!eventId) {
+                const eventResult = await (supabase.from('events' as any) as any).insert({ meet_id: meetId, name: eventName, course, heat_count: 1 }).select('id').single()
+                if (eventResult.error || !eventResult.data) continue
+                const createdEventId = eventResult.data.id as string
+                eventId = createdEventId
+                eventIdsByName.set(eventName, createdEventId)
+            }
 
             const seedTime = eventEntry.seedTime ?? null
             const eventRow = {
-                event_id: eventResult.data.id,
+                event_id: eventId,
                 swimmer_id: swimmerResult.data.id,
                 swimmer_name: `${firstName ?? ''} ${lastName ?? ''}`.trim() || 'Swimmer',
                 team_code: swimmer.teamCode ?? null,

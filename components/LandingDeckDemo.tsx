@@ -4,8 +4,8 @@ import { ChevronRight, Radio } from 'lucide-react'
 import { useState } from 'react'
 
 const heats = [
-    { event: '200 Medley Relay', heat: 2, lanes: ['Northside Aquatics', 'Cedar Rapids Swim', 'Bluewater Club', 'Harbor Swim Team'] },
-    { event: '100 Freestyle', heat: 1, lanes: ['Summit Swim Club', 'Metro Aquatics', 'Cedar Rapids Swim', 'Northside Aquatics'] },
+    { event: '200 Medley Relay', heat: 1, lanes: ['Northside Aquatics', 'Cedar Rapids Swim', 'Bluewater Club', 'Harbor Swim Team'] },
+    { event: '100 Freestyle', heat: 2, lanes: ['Summit Swim Club', 'Metro Aquatics', 'Cedar Rapids Swim', 'Northside Aquatics'] },
     { event: '100 Breaststroke', heat: 3, lanes: ['Bluewater Club', 'Harbor Swim Team', 'Summit Swim Club', 'Metro Aquatics'] },
 ]
 

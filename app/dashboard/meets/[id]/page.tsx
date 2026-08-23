@@ -30,6 +30,12 @@ export default async function MeetDashboardPage({ params, searchParams }: { para
     const eventEntries = (eventIds.length
         ? (await supabase.from('meet_entries').select('*').in('event_id', eventIds).order('heat_number', { ascending: true, nullsFirst: true }).order('lane_number', { ascending: true, nullsFirst: true })).data ?? []
         : []) as Array<{ id: string; event_id: string; swimmer_name?: string | null; heat_number?: number | null; heat?: number | null; lane_number?: number | null; lane?: number | null; result_time?: string | null }>
+    const rosterEntries = ((await (supabase.from('entries') as any).select('id, event_name, swimmer_name, team_code, seed_time').eq('meet_id', params.id).order('event_name').order('swimmer_name')).data ?? []) as Array<{ id: string; event_name: string; swimmer_name: string; team_code?: string | null; seed_time?: string | null }>
+    const rosterByEvent = rosterEntries.reduce<Record<string, typeof rosterEntries>>((groups, entry) => {
+        const eventName = entry.event_name || 'Unassigned event'
+        groups[eventName] = [...(groups[eventName] ?? []), entry]
+        return groups
+    }, {})
 
     return (
         <div className="mx-auto max-w-6xl space-y-8 py-8">
@@ -89,6 +95,7 @@ export default async function MeetDashboardPage({ params, searchParams }: { para
                     })
                 )}
             </section>
+            {Object.keys(rosterByEvent).length > 0 ? <section className="space-y-3"><div><p className="text-sm font-medium uppercase tracking-[0.14em] text-sky-600">Imported roster</p><h2 className="mt-1 text-2xl font-semibold text-slate-900">Swimmers by event</h2></div>{Object.entries(rosterByEvent).map(([eventName, eventRoster]) => <details key={eventName} className="rounded-xl border border-slate-200 bg-white p-4" open><summary className="cursor-pointer font-semibold text-slate-900">{eventName} <span className="ml-2 text-sm font-normal text-slate-500">{eventRoster.length} swimmer{eventRoster.length === 1 ? '' : 's'}</span></summary><div className="mt-3 grid gap-2 sm:grid-cols-2">{eventRoster.map((entry) => <div key={entry.id} className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-sm"><span className="font-medium text-slate-800">{entry.swimmer_name}</span><span className="text-right text-slate-500">{entry.team_code ?? ''}{entry.team_code && entry.seed_time ? ' · ' : ''}{entry.seed_time ?? ''}</span></div>)}</div></details>)}</section> : null}
         </div>
     )
 }

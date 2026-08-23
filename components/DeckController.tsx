@@ -22,16 +22,9 @@ export default function DeckController({ meetId, events, entries = [], currentEv
         })
     }
     const advance = () => {
-        const index = events.findIndex((event) => event.id === eventId)
-        const nextEvent = events[index + 1]
-        if (nextEvent) {
-            setEventId(nextEvent.id)
-            setHeat(1)
-            save(nextEvent.id, 1)
-        } else {
-            setHeat((value) => value + 1)
-            save(eventId, heat + 1)
-        }
+        const nextHeat = heat + 1
+        setHeat(nextHeat)
+        save(eventId, nextHeat)
     }
     const activeEntries = entries.filter((entry) => entry.event_id === eventId && (entry.heat_number ?? entry.heat ?? 1) === heat)
     const submitResults = () => {
