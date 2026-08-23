@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseAdminClient } from '@/lib/supabase'
+import { sendHeatAlertPushes } from '@/lib/web-push'
+
+export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
     const { meetId, eventId, heatNumber, courseType } = await request.json() as { meetId?: string; eventId?: string; heatNumber?: number; courseType?: 'SCY' | 'LCM' | 'SCM' }
@@ -10,5 +13,12 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ message: error.message }, { status: 500 })
     const updatedMeet = data?.[0]
     if (!updatedMeet) return NextResponse.json({ message: 'Meet not found.' }, { status: 404 })
+    const subscribersResult = await (supabase.from('subscribers' as any) as any).select('id, push_subscription').eq('meet_id', meetId).not('push_subscription', 'is', null)
+    if (!subscribersResult.error && subscribersResult.data?.length) {
+        const expiredSubscriptionIds = await sendHeatAlertPushes(subscribersResult.data, meetId, updatedMeet.current_heat ?? updatedMeet.current_heat_number)
+        if (expiredSubscriptionIds.length) {
+            await (supabase.from('subscribers' as any) as any).delete().in('id', expiredSubscriptionIds)
+        }
+    }
     return NextResponse.json({ updated: true, eventId: updatedMeet.current_event_id, heatNumber: updatedMeet.current_heat ?? updatedMeet.current_heat_number })
 }

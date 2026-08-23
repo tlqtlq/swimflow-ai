@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { getClientPortalUrl } from '@/lib/app-url'
-import { saveEventResults, type ScoreInput } from '@/lib/actions/score-event'
+import type { ScoreInput } from '@/lib/actions/score-event'
+import { sendOrQueueMutation } from '@/lib/offline-sync'
 
 type EventOption = { id: string; name: string; course?: string | null }
 type EntryOption = { id: string; event_id: string; swimmer_name?: string | null; lane_number?: number | null; lane?: number | null; heat_number?: number | null; heat?: number | null; result_time?: string | null }
@@ -16,9 +17,12 @@ export default function DeckController({ meetId, events, entries = [], currentEv
     const [pending, startTransition] = useTransition()
     const save = (nextEventId = eventId, nextHeat = heat, nextCourse = course) => {
         startTransition(async () => {
-            const response = await fetch('/api/meets/deck', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ meetId, eventId: nextEventId, heatNumber: nextHeat, courseType: nextCourse }) })
-            const result = await response.json()
-            setMessage(response.ok ? 'Deck position updated.' : result.message ?? 'Unable to update deck position.')
+            const result = await sendOrQueueMutation({
+                url: '/api/meets/deck',
+                method: 'POST',
+                body: { meetId, eventId: nextEventId, heatNumber: nextHeat, courseType: nextCourse },
+            })
+            setMessage(result.queued ? 'Deck position queued and will sync when you are back online.' : result.ok ? 'Deck position updated.' : String(result.data?.message ?? 'Unable to update deck position.'))
         })
     }
     const advance = () => {
@@ -30,12 +34,21 @@ export default function DeckController({ meetId, events, entries = [], currentEv
     const submitResults = () => {
         const inputs: ScoreInput[] = activeEntries.filter((entry) => times[entry.id]?.trim()).map((entry) => ({ entryId: entry.id, resultTime: times[entry.id] }))
         startTransition(async () => {
-            try {
-                const result = await saveEventResults(eventId, inputs)
-                setMessage(`${result.saved} result${result.saved === 1 ? '' : 's'} submitted to spectators.`)
-            } catch (error) {
-                setMessage(error instanceof Error ? error.message : 'Unable to submit heat results.')
+            const result = await sendOrQueueMutation({
+                url: '/api/meets/results',
+                method: 'POST',
+                body: { eventId, inputs },
+            })
+            if (result.queued) {
+                setMessage('Heat results queued and will sync when you are back online.')
+                return
             }
+            if (!result.ok) {
+                setMessage(String(result.data?.message ?? 'Unable to submit heat results.'))
+                return
+            }
+            const saved = Number(result.data?.saved ?? 0)
+            setMessage(`${saved} result${saved === 1 ? '' : 's'} submitted to spectators.`)
         })
     }
     return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

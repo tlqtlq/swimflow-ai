@@ -1,15 +1,16 @@
 import React from 'react'
 import { Upload } from 'lucide-react'
 import Image from 'next/image'
+import Link from 'next/link'
 
 export default function Header() {
     return (
         <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
             <div className="container flex min-h-16 items-center justify-between py-2">
                 <div className="flex items-center gap-5">
-                    <a href="/dashboard" className="flex items-center">
+                    <Link href="/" className="flex items-center">
                         <Image src="/logo.png" alt="SwimFlow.ai Home" width={320} height={64} style={{ width: 'auto' }} className="h-14 w-auto object-contain md:h-16" priority />
-                    </a>
+                    </Link>
                     <nav className="flex items-center gap-4">
                         <a href="/dashboard" className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900">
                             Dashboard

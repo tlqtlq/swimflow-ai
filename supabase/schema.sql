@@ -150,10 +150,16 @@ alter table meet_entries add column if not exists scored_at timestamptz;
 create table if not exists subscribers (
   id uuid primary key default gen_random_uuid(),
   meet_id uuid not null references meets(id) on delete cascade,
-  phone_number text not null,
+  phone_number text,
+  push_endpoint text,
+  push_subscription jsonb,
   created_at timestamptz not null default now(),
   unique (meet_id, phone_number)
 );
+
+alter table subscribers add column if not exists push_endpoint text;
+alter table subscribers add column if not exists push_subscription jsonb;
+alter table subscribers alter column phone_number drop not null;
 
 create table if not exists heat_announcements (
   id uuid primary key default gen_random_uuid(),
@@ -173,6 +179,7 @@ create index if not exists idx_heat_entries_swimmer_id on heat_entries (swimmer_
 create index if not exists idx_meet_entries_event_id on meet_entries (event_id);
 create index if not exists idx_entries_meet_id on entries (meet_id);
 create index if not exists idx_subscribers_meet_id on subscribers (meet_id);
+create unique index if not exists idx_subscribers_meet_push_endpoint on subscribers (meet_id, push_endpoint) where push_endpoint is not null;
 create index if not exists idx_heat_announcements_meet_id on heat_announcements (meet_id, created_at desc);
 
 alter table organizations enable row level security;

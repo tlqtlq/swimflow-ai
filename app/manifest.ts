@@ -6,5 +6,6 @@ export default function manifest(): MetadataRoute.Manifest {
         short_name: 'SwimFlow',
         display: 'standalone',
         start_url: '/',
+        icons: [{ src: '/logo.png', sizes: 'any', type: 'image/png' }],
     }
 }

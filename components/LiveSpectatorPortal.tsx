@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import HeatAlertControls from '@/components/HeatAlertControls'
 
 type EventRow = { id: string; name: string; course?: string | null }
 type Entry = { id: string; event_id: string; lane_number?: number | null; lane?: number | null; swimmer_name?: string | null; heat_number?: number | null; heat?: number | null; seed_time?: string | null; result_time?: string | null; place?: number | null }
@@ -22,11 +23,6 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
     const [activeEventId, setActiveEventId] = useState(currentEventId ?? events[0]?.id ?? '')
     const [activeHeat, setActiveHeat] = useState(currentHeat)
     const [course, setCourse] = useState(courseType)
-    const [alertsEnabled, setAlertsEnabled] = useState(false)
-    const [alertMessage, setAlertMessage] = useState('')
-    const [isIOS, setIsIOS] = useState(false)
-    const [isStandalone, setIsStandalone] = useState(false)
-    const [notificationSupported, setNotificationSupported] = useState(false)
     const latestHeat = useRef(currentHeat)
     const latestDeckEventId = useRef(currentEventId ?? events[0]?.id ?? '')
 
@@ -41,21 +37,7 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
         if (typeof window === 'undefined') return
         latestHeat.current = currentHeat
         latestDeckEventId.current = currentEventId ?? events[0]?.id ?? ''
-        const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean }
-        setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent))
-        setIsStandalone(window.matchMedia('(display-mode: standalone)').matches || Boolean(navigatorWithStandalone.standalone))
-        setNotificationSupported('Notification' in window)
-        setAlertsEnabled('Notification' in window && Notification.permission === 'granted')
     }, [currentEventId, currentHeat, events])
-
-    const enableHeatAlerts = async () => {
-        if (!('Notification' in window)) {
-            return
-        }
-        const permission = await Notification.requestPermission()
-        setAlertsEnabled(permission === 'granted')
-        setAlertMessage(permission === 'granted' ? 'Heat alerts are enabled on this device.' : 'Notification permission was not granted.')
-    }
 
     useEffect(() => {
         const supabase = getSupabaseBrowserClient()
@@ -132,9 +114,7 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
                 </div>
                 <p className="mt-5 text-slate-300">{displayLocation}{displayDate ? ` · ${displayDate}` : ''}{locationAddress ? <> · <a className="text-sky-300 underline decoration-sky-500/60 underline-offset-2" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationAddress)}`} target="_blank" rel="noreferrer">View on Google Maps</a></> : null}</p>
                 <p className="mt-2 text-sm text-slate-400">Heat order, lane assignments, and official results in one live view.</p>
-                <div className="mt-5">
-                    {isIOS && !isStandalone ? <p className="rounded-lg border border-sky-300/30 bg-sky-300/10 px-3 py-2 text-sm text-sky-100">Tap Share -&gt; Add to Home Screen for Lock-Screen Alerts</p> : <><button type="button" onClick={enableHeatAlerts} disabled={alertsEnabled || !notificationSupported} title={notificationSupported ? undefined : 'Notifications are unavailable in this browser'} className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-sky-100 disabled:cursor-default disabled:bg-emerald-300">{alertsEnabled ? 'Heat alerts enabled' : 'Enable Heat Alerts'}</button>{alertMessage ? <p aria-live="polite" className="mt-2 text-xs text-slate-300">{alertMessage}</p> : null}</>}
-                </div>
+                <HeatAlertControls meetId={meetId} />
             </div>
         </header>
         {events.length > 1 ? <nav aria-label="Meet events" className="flex gap-2 overflow-x-auto pb-1">{events.map((event, index) => <button type="button" key={event.id} onClick={() => setActiveEventId(event.id)} className={`shrink-0 rounded-lg px-3 py-2 text-sm font-medium ${event.id === activeEventId ? 'bg-[#003296] text-white' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>Event {index + 1}: {event.name}</button>)}</nav> : null}
