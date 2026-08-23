@@ -78,8 +78,9 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
         return () => { void supabase.removeChannel(channel) }
     }, [meetId, events])
 
+    const uniqueEntries = Array.from(new Map(entries.map((entry) => [`${entry.event_id}-${entry.swimmer_name ?? ''}`, entry])).values())
     const eventCards = events.filter((event) => event.id === activeEventId).map((event) => {
-        const eventEntries = entries.filter((entry) => entry.event_id === event.id)
+        const eventEntries = uniqueEntries.filter((entry) => entry.event_id === event.id)
         const heatNumbers = [activeHeat]
         return { event, eventEntries, heatNumbers }
     })

@@ -13,12 +13,14 @@ export default async function MeetPortalPage({ params }: { params: { meetId: str
     }
     const location = meet.location_id ? (await (supabase.from('locations' as any) as any).select('name,address').eq('id', meet.location_id).maybeSingle()).data as { name?: string; address?: string | null } | null : null
     const events = ((await supabase.from('events').select('*').eq('meet_id', params.meetId).order('name')).data ?? []) as Array<{ id: string; name: string; course?: string | null }>
-    const eventIds = events.map((event) => event.id)
+    const rosterEntries = ((await (supabase.from('entries') as any).select('id, event_name, swimmer_name, team_code, seed_time').eq('meet_id', params.meetId).order('event_name').order('swimmer_name')).data ?? []) as Array<{ id: string; event_name: string; swimmer_name: string; team_code?: string | null; seed_time?: string | null }>
+    const activeEventNames = new Set(rosterEntries.map((entry) => entry.event_name).filter(Boolean))
+    const activeEvents = events.filter((event) => activeEventNames.has(event.name))
+    const eventIds = activeEvents.map((event) => event.id)
 
     const entries = (eventIds.length
-        ? (await supabase.from('meet_entries').select('*').in('event_id', eventIds).order('heat_number', { ascending: true, nullsFirst: true }).order('lane_number', { ascending: true, nullsFirst: true })).data ?? []
+        ? (await supabase.from('meet_entries').select('*').in('event_id', eventIds).not('heat_number', 'is', null).order('heat_number', { ascending: true }).order('lane_number', { ascending: true })).data ?? []
         : []) as Array<{ id: string; event_id: string; lane_number?: number | null; lane?: number | null; swimmer_name?: string | null; heat_number?: number | null; heat?: number | null; seed_time?: string | null; result_time?: string | null; place?: number | null }>
-    const rosterEntries = ((await (supabase.from('entries') as any).select('id, event_name, swimmer_name, team_code, seed_time').eq('meet_id', params.meetId).order('event_name').order('swimmer_name')).data ?? []) as Array<{ id: string; event_name: string; swimmer_name: string; team_code?: string | null; seed_time?: string | null }>
 
-    return <div className="mx-auto max-w-5xl space-y-4 py-8"><LiveSpectatorPortal meetId={params.meetId} meetName={meet.name ?? 'Meet'} meetLocation={location?.name ?? meet.location ?? 'Venue to be announced'} meetDate={meet.meet_date ?? null} accentColor={meet.accent_color ?? null} locationAddress={location?.address ?? null} events={events} initialEntries={entries} rosterEntries={rosterEntries} currentEventId={meet.current_event_id} currentHeat={meet.current_heat ?? meet.current_heat_number ?? 1} courseType={meet.course_type ?? 'SCY'} /></div>
+    return <div className="mx-auto max-w-5xl space-y-4 py-8"><LiveSpectatorPortal meetId={params.meetId} meetName={meet.name ?? 'Meet'} meetLocation={location?.name ?? meet.location ?? 'Venue to be announced'} meetDate={meet.meet_date ?? null} accentColor={meet.accent_color ?? null} locationAddress={location?.address ?? null} events={activeEvents} initialEntries={entries} rosterEntries={rosterEntries} currentEventId={meet.current_event_id} currentHeat={meet.current_heat ?? meet.current_heat_number ?? 1} courseType={meet.course_type ?? 'SCY'} /></div>
 }

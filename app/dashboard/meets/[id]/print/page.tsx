@@ -9,7 +9,7 @@ export default async function PrintMeetPage({ params, searchParams }: { params: 
     const { data: events } = await (supabase.from('events' as any) as any).select('*').eq('meet_id', params.id).order('name')
     const eventIds = (events ?? []).map((event: { id: string }) => event.id)
     const { data: entries } = eventIds.length
-        ? await (supabase.from('meet_entries' as any) as any).select('*').in('event_id', eventIds).order('heat_number').order('lane_number')
+        ? await (supabase.from('meet_entries' as any) as any).select('*').in('event_id', eventIds).not('heat_number', 'is', null).order('heat_number').order('lane_number')
         : { data: [] }
     const resultView = searchParams?.view === 'results'
 
