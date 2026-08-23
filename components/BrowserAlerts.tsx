@@ -8,7 +8,6 @@ export default function BrowserAlerts({ meetId }: { meetId: string }) {
 
     const enable = async () => {
         if (!('Notification' in window)) {
-            setMessage('Browser notifications are not supported here.')
             return
         }
         const permission = await Notification.requestPermission()
@@ -23,6 +22,7 @@ export default function BrowserAlerts({ meetId }: { meetId: string }) {
 
     useEffect(() => {
         if (typeof window === 'undefined') return
+        if (!('Notification' in window)) return
         setEnabled(localStorage.getItem(`swimflow-alerts:${meetId}`) === '1')
         let latestId = ''
         const check = async () => {
@@ -30,7 +30,7 @@ export default function BrowserAlerts({ meetId }: { meetId: string }) {
             const response = await fetch(`/api/notifications/latest?meetId=${encodeURIComponent(meetId)}`, { cache: 'no-store' })
             if (!response.ok) return
             const announcement = await response.json()
-            if (announcement?.id && announcement.id !== latestId) {
+            if (announcement?.id && announcement.id !== latestId && Notification.permission === 'granted') {
                 latestId = announcement.id
                 new Notification('SwimFlow.ai heat call', { body: announcement.message })
             }
