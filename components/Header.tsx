@@ -1,90 +1,201 @@
 'use client'
 
-import React from 'react'
-import { Upload } from 'lucide-react'
+import { ChevronDown, LayoutDashboard, LogOut, Upload } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import type { User } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
+
+type ProfileRole = 'meet_host' | 'coach' | 'spectator'
+
+const roleLabels: Record<ProfileRole, string> = {
+  meet_host: 'Meet Host',
+  coach: 'Team Coach',
+  spectator: 'Spectator',
+}
+
+function isProfileRole(role: unknown): role is ProfileRole {
+  return role === 'meet_host' || role === 'coach' || role === 'spectator'
+}
+
+function getUserRole(user: User | null): ProfileRole | null {
+  const role = user?.user_metadata?.role
+  return isProfileRole(role) ? role : null
+}
+
+function getInitials(email: string | undefined) {
+  return email?.slice(0, 2).toUpperCase() || 'SF'
+}
 
 export default function Header() {
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
+  const [role, setRole] = useState<ProfileRole | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
-  
+
   useEffect(() => {
+    let isActive = true
+
     const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
+      const { data } = await supabase.auth.getUser()
+      if (isActive) setUser(data.user)
     }
-    
-    checkUser()
-    
-    // Listen for auth changes
+
+    void checkUser()
+
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null)
+      if (isActive) {
+        setUser(session?.user ?? null)
+        setMenuOpen(false)
+      }
     })
-    
+
     return () => {
+      isActive = false
       authListener.subscription.unsubscribe()
     }
   }, [])
-  
+
+  useEffect(() => {
+    let isActive = true
+
+    if (!user) {
+      setRole(null)
+      return () => {
+        isActive = false
+      }
+    }
+
+    setRole(getUserRole(user))
+
+    const loadProfileRole = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (isActive && data && isProfileRole(data.role)) setRole(data.role)
+    }
+
+    void loadProfileRole()
+
+    return () => {
+      isActive = false
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (!menuOpen) return
+
+    const closeMenu = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false)
+    }
+
+    document.addEventListener('mousedown', closeMenu)
+    return () => document.removeEventListener('mousedown', closeMenu)
+  }, [menuOpen])
+
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    const { error } = await supabase.auth.signOut()
+    if (error) return
+
+    setMenuOpen(false)
     router.push('/')
     router.refresh()
   }
-  
+
+  const closeMenuOnEscape = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === 'Escape') setMenuOpen(false)
+  }
+
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
-      <div className="container flex min-h-16 items-center justify-between py-2">
-        <div className="flex items-center gap-5">
-          <Link href="/" className="flex items-center">
-            <Image src="/logo.png" alt="SwimFlow.ai Home" width={320} height={64} style={{ width: 'auto' }} className="h-14 w-auto object-contain md:h-16" priority />
+      <div className="container flex min-h-16 items-center justify-between gap-4 py-2">
+        <div className="flex min-w-0 items-center gap-5">
+          <Link href="/" className="flex shrink-0 items-center" aria-label="SwimFlow home">
+            <Image src="/logo.png" alt="SwimFlow.ai Home" width={320} height={64} style={{ width: 'auto' }} className="h-12 w-auto object-contain md:h-14" priority />
           </Link>
-          <nav className="flex items-center gap-4">
-            <a href="/dashboard" className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900">
-              Dashboard
-            </a>
-            <a href="/dashboard#active-meets" className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900">
-              Meets
-            </a>
-            <a href="/dashboard" className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900">
-              Upload
-            </a>
-          </nav>
+          {user ? (
+            <nav className="hidden items-center gap-5 md:flex" aria-label="Application navigation">
+              <Link href="/dashboard" className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900">
+                Dashboard
+              </Link>
+              <Link href="/dashboard#active-meets" className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900">
+                Meets
+              </Link>
+            </nav>
+          ) : null}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {user ? (
-            // User is logged in - show avatar and dropdown
-            <div className="relative">
-              <button className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100">
-                <span>{user.email}</span>
-              </button>
-              <div className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                <Link href="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Dashboard</Link>
-                <button 
-                  onClick={handleLogout}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Log Out
-                </button>
-              </div>
-            </div>
-          ) : (
-            // User is not logged in - show login/signup buttons
             <>
-              <a href="/login" className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100">Log In</a>
-              <a href="/signup" className="rounded-lg bg-[#003296] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#002878]">Sign Up</a>
+              <Link href="/dashboard" className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:flex">
+                <Upload size={16} aria-hidden="true" />
+                Import
+              </Link>
+              <Link href="/dashboard" className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-800">
+                Create Meet
+              </Link>
+              <div ref={menuRef} className="relative">
+                <button
+                  type="button"
+                  aria-expanded={menuOpen}
+                  aria-haspopup="menu"
+                  aria-label="Open account menu"
+                  onClick={() => setMenuOpen((open) => !open)}
+                  onKeyDown={closeMenuOnEscape}
+                  className="flex h-10 items-center gap-1 rounded-lg border border-slate-200 bg-white px-1.5 text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+                >
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-slate-900 text-xs font-semibold text-white" aria-hidden="true">
+                    {getInitials(user.email)}
+                  </span>
+                  <ChevronDown size={16} aria-hidden="true" />
+                </button>
+                {menuOpen ? (
+                  <div role="menu" className="absolute right-0 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                    <div className="border-b border-slate-100 px-3 py-2.5">
+                      <p className="truncate text-sm font-medium text-slate-900">{user.email}</p>
+                      <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                        {role ? roleLabels[role] : 'Member'}
+                      </span>
+                    </div>
+                    <Link
+                      href="/dashboard"
+                      role="menuitem"
+                      onClick={() => setMenuOpen(false)}
+                      className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      <LayoutDashboard size={16} aria-hidden="true" />
+                      Dashboard
+                    </Link>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={handleLogout}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      <LogOut size={16} aria-hidden="true" />
+                      Sign Out
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50">
+                Log In
+              </Link>
+              <Link href="/signup" className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-800">
+                Sign Up
+              </Link>
             </>
           )}
-          <a href="/dashboard" className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 sm:flex">
-            <Upload size={16} />
-            Import
-          </a>
-          <a href="/dashboard" className="rounded-lg bg-[#003296] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#002878]">Create Meet</a>
         </div>
       </div>
     </header>
