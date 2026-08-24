@@ -1,34 +1,20 @@
 import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/lib/types/database'
+import { cookies } from 'next/headers'
+import { NextRequest } from 'next/server'
 
-export function createSupabaseServerClient() {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY
+// Create a single supabase client for interacting with your database
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-    if (!url || !key) {
-        return null
-    }
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-    return createClient<Database>(url, key, {
-        auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-        },
-    })
+// Create a Supabase client for server-side operations
+export const createSupabaseServerClient = () => {
+  return createClient(supabaseUrl, supabaseAnonKey)
 }
 
-export function createSupabaseAdminClient() {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-    if (!url || !key) {
-        return null
-    }
-
-    return createClient<Database>(url, key, {
-        auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-        },
-    })
+// Create a Supabase client for admin operations (with service role key)
+export const createSupabaseAdminClient = () => {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  return createClient(supabaseUrl, serviceRoleKey)
 }
