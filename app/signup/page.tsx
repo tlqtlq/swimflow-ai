@@ -1,93 +1,133 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { Building2, Check, Eye, EyeOff, Lock, Mail, User, Users } from 'lucide-react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { useEffect, useState, type FormEvent } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+
+type Role = 'meet_host' | 'coach'
+
+const roleOptions: Array<{ value: Role; title: string; description: string; icon: typeof Building2 }> = [
+  {
+    value: 'meet_host',
+    title: 'Meet Host / Director',
+    description: 'Host meets, manage seedings, publish live portal',
+    icon: Building2,
+  },
+  {
+    value: 'coach',
+    title: 'Team Coach',
+    description: 'Manage team rosters, entries, and swimmer stats',
+    icon: Users,
+  },
+]
 
 export default function SignupPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'meet_host' | 'coach'>('meet_host');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [role, setRole] = useState<Role>('meet_host')
+  const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
-    // Check if user is already logged in
     const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        router.push('/dashboard');
-      }
-    };
+      const { data } = await supabase.auth.getUser()
+      if (data.user) router.replace('/dashboard')
+    }
 
-    checkUser();
-  }, [router]);
+    void checkUser()
+  }, [router])
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+  async function handleSignup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+    setNotice(null)
+    setLoading(true)
 
-    // First, create the user with Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: signupError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: fullName,
           role,
-        }
-      }
-    });
+        },
+      },
+    })
 
-    if (authError) {
-      setError(authError.message);
-    } else {
-      // If signup successful, redirect to dashboard
-      router.push('/dashboard');
+    if (signupError) {
+      setError(signupError.message)
+      setLoading(false)
+      return
     }
 
-    setLoading(false);
-  };
+    if (authData.user && authData.session) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: authData.user.id,
+          email,
+          full_name: fullName,
+          role,
+        }, { onConflict: 'id' })
+
+      if (profileError) {
+        setError(`Your account was created, but profile setup failed: ${profileError.message}`)
+        setLoading(false)
+        return
+      }
+
+      router.push('/dashboard')
+      router.refresh()
+      return
+    }
+
+    setNotice('Check your inbox to confirm your account, then return here to sign in.')
+    setLoading(false)
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
-          </h2>
+    <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center bg-gradient-to-br from-slate-50 via-white to-sky-50 px-4 py-12 sm:px-6 lg:px-8">
+      <section className="w-full max-w-md rounded-2xl border border-slate-100 bg-white p-8 shadow-xl sm:p-10" aria-labelledby="signup-title">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <Image src="/logo.png" alt="SwimFlow.ai Logo" width={200} height={40} className="mb-5 h-auto w-auto" priority />
+          <h1 id="signup-title" className="text-2xl font-semibold text-slate-900">Get started with SwimFlow</h1>
+          <p className="mt-2 text-sm text-slate-600">Create your account to set up and run your next meet.</p>
         </div>
-        {error && (
-          <div className="rounded-md bg-red-50 p-4">
-            <div className="text-sm text-red-700">{error}</div>
-          </div>
-        )}
-        <form className="mt-8 space-y-6" onSubmit={handleSignup}>
-          <input type="hidden" name="remember" defaultValue="true" />
-          
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="full-name" className="sr-only">
-                Full Name
-              </label>
+
+        <form className="space-y-5" onSubmit={handleSignup}>
+          {error ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</p> : null}
+          {notice ? <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">{notice}</p> : null}
+
+          <div>
+            <label htmlFor="full-name" className="mb-2 block text-sm font-medium text-slate-700">Full name</label>
+            <div className="relative">
+              <User className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} aria-hidden="true" />
               <input
                 id="full-name"
                 name="fullName"
                 type="text"
+                autoComplete="name"
                 required
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Full Name"
+                onChange={(event) => setFullName(event.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                placeholder="Your name"
+                disabled={loading}
               />
             </div>
-            <div>
-              <label htmlFor="email-address" className="sr-only">
-                Email address
-              </label>
+          </div>
+
+          <div>
+            <label htmlFor="email-address" className="mb-2 block text-sm font-medium text-slate-700">Email address</label>
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} aria-hidden="true" />
               <input
                 id="email-address"
                 name="email"
@@ -95,78 +135,81 @@ export default function SignupPage() {
                 autoComplete="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
+                onChange={(event) => setEmail(event.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                placeholder="name@team.org"
+                disabled={loading}
               />
             </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
+          </div>
+
+          <div>
+            <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-700">Password</label>
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} aria-hidden="true" />
               <input
                 id="password"
                 name="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
+                minLength={6}
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
+                onChange={(event) => setPassword(event.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-12 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                placeholder="Create a password"
+                disabled={loading}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-500 transition hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+              >
+                {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+              </button>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Role
-            </label>
-            <div className="flex space-x-4">
-              <label className="inline-flex items-center">
-                <input
-                  type="radio"
-                  name="role"
-                  value="meet_host"
-                  checked={role === 'meet_host'}
-                  onChange={() => setRole('meet_host')}
-                  className="text-indigo-600 focus:ring-indigo-500"
-                />
-                <span className="ml-2 text-sm text-gray-700">Meet Host / Director</span>
-              </label>
-              <label className="inline-flex items-center">
-                <input
-                  type="radio"
-                  name="role"
-                  value="coach"
-                  checked={role === 'coach'}
-                  onChange={() => setRole('coach')}
-                  className="text-indigo-600 focus:ring-indigo-500"
-                />
-                <span className="ml-2 text-sm text-gray-700">Team Coach</span>
-              </label>
-            </div>
-          </div>
+          <fieldset>
+            <legend className="mb-2 block text-sm font-medium text-slate-700">Choose your role</legend>
+            <div className="grid grid-cols-2 gap-3">
+              {roleOptions.map((option) => {
+                const Icon = option.icon
+                const selected = role === option.value
 
-          <div className="flex items-center justify-between">
-            <div className="text-sm">
-              <a href="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
-                Already have an account? Sign in
-              </a>
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setRole(option.value)}
+                    className={`relative min-h-40 rounded-xl border p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 ${selected ? 'border-slate-900 bg-slate-50 ring-2 ring-slate-900' : 'border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50'}`}
+                  >
+                    <Icon size={20} className="mb-4 text-slate-700" aria-hidden="true" />
+                    <span className="block text-sm font-semibold text-slate-900">{option.title}</span>
+                    <span className="mt-2 block text-xs leading-5 text-slate-600">{option.description}</span>
+                    {selected ? <span className="absolute right-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-slate-900 text-white"><Check size={13} strokeWidth={3} aria-hidden="true" /></span> : null}
+                  </button>
+                )
+              })}
             </div>
-          </div>
+          </fieldset>
 
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              {loading ? 'Creating account...' : 'Sign up'}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-xl bg-slate-900 py-3 font-medium text-white shadow-md transition-all hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? 'Creating account...' : 'Create account'}
+          </button>
         </form>
-      </div>
+
+        <p className="mt-7 text-center text-sm text-slate-600">
+          Already have an account?{' '}
+          <Link href="/login" className="font-medium text-slate-900 underline-offset-4 transition hover:underline">Sign in</Link>
+        </p>
+      </section>
     </div>
-  );
+  )
 }
