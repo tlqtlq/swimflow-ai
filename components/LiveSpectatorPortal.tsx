@@ -1,6 +1,6 @@
 'use client'
 
-import { Share, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
@@ -10,6 +10,7 @@ type EventRow = { id: string; name: string; course?: string | null }
 type Entry = { id: string; event_id: string; lane_number?: number | null; lane?: number | null; swimmer_name?: string | null; team_code?: string | null; heat_number?: number | null; heat?: number | null; seed_time?: string | null; result_time?: string | null; place?: number | null }
 type RosterEntry = { id: string; event_name: string; swimmer_name: string; team_code?: string | null; seed_time?: string | null }
 type BeforeInstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }> }
+type IOSBrowser = 'safari' | 'chrome' | 'other' | null
 
 const getSupabaseBrowserClient = () => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -28,8 +29,7 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
     const [course, setCourse] = useState(courseType)
     const [showInstallModal, setShowInstallModal] = useState(false)
     const [isIOS, setIsIOS] = useState(false)
-    const [canOpenShareSheet, setCanOpenShareSheet] = useState(false)
-    const [isOpeningShareSheet, setIsOpeningShareSheet] = useState(false)
+    const [iosBrowser, setIOSBrowser] = useState<IOSBrowser>(null)
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
     const [installMessage, setInstallMessage] = useState('')
     const latestHeat = useRef(currentHeat)
@@ -48,9 +48,12 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
         if (isStandalone) return
 
         const userAgent = navigator.userAgent
-        const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent)
+        const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
+        const isIOSDevice = /iPad|iPhone|iPod|CriOS|FxiOS|OPiOS|EdgiOS/.test(userAgent) || isIPadOS
+        const isIOSChrome = /CriOS/.test(userAgent)
+        const isIOSSafari = isIOSDevice && /Safari/.test(userAgent) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(userAgent)
         setIsIOS(isIOSDevice)
-        setCanOpenShareSheet(typeof navigator.share === 'function')
+        setIOSBrowser(isIOSDevice ? (isIOSChrome ? 'chrome' : isIOSSafari ? 'safari' : 'other') : null)
         setShowInstallModal(true)
 
         const captureInstallPrompt = (event: Event) => {
@@ -152,27 +155,11 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
         }
         void installSwimFlow()
     }
-    const openIOSShareSheet = async () => {
-        if (!navigator.share) {
-            setInstallMessage('Open this portal in Safari, then use Share and select Add to Home Screen.')
-            return
-        }
-
-        setIsOpeningShareSheet(true)
-        try {
-            await navigator.share({
-                title: 'SwimFlow',
-                text: 'Live swim meet heat alerts',
-                url: window.location.href,
-            })
-            setInstallMessage('In the Share menu, scroll down and select Add to Home Screen.')
-        } catch (error) {
-            if (!(error instanceof DOMException && error.name === 'AbortError')) {
-                setInstallMessage('Unable to open the Share menu. Open this portal in Safari and use Share to add it to your home screen.')
-            }
-        } finally {
-            setIsOpeningShareSheet(false)
-        }
+    const openInSafari = () => {
+        const currentUrl = new URL(window.location.href)
+        const safariScheme = currentUrl.protocol === 'https:' ? 'x-safari-https://' : 'x-safari-http://'
+        setInstallMessage('If Safari does not open, tap Chrome\'s three-dot menu and choose Open in Safari.')
+        window.location.assign(`${safariScheme}${currentUrl.host}${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`)
     }
 
     return <div className="space-y-4">
@@ -224,14 +211,19 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
                     </div>
 
                     {isIOS ? (
-                        <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                            <p className="font-semibold text-slate-900">Install SwimFlow on iPhone:</p>
+                        iosBrowser === 'safari' ? <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                            <p className="font-semibold text-slate-900">Install SwimFlow from Safari:</p>
                             <ol className="list-inside list-decimal space-y-1">
-                                <li>Tap the <strong>Share</strong> button (square icon with upward arrow) at the bottom.</li>
+                                <li>Tap Safari&apos;s <strong>Share</strong> icon in the address bar.</li>
                                 <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
+                                <li>Tap <strong>Add</strong> to finish.</li>
                             </ol>
-                            <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-700">💡 <strong>Scanned via Camera QR?</strong> Tap the Compass/Safari icon in the bottom-right corner first.</p>
-                            {canOpenShareSheet ? <button type="button" onClick={() => void openIOSShareSheet()} disabled={isOpeningShareSheet} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-3 font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-wait disabled:bg-slate-400"><Share size={17} aria-hidden="true" />{isOpeningShareSheet ? 'Opening Share Menu...' : 'Open Share Menu'}</button> : <p className="mt-2 text-xs text-slate-500">Open this portal in Safari to use the Share menu and add SwimFlow to your home screen.</p>}
+                            <p className="mt-2 rounded-lg border border-sky-200 bg-sky-50 p-2 text-xs text-sky-800">Apple only exposes Add to Home Screen from Safari&apos;s own Share menu. It cannot be opened programmatically by a website.</p>
+                        </div> : <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                            <p className="font-semibold">Open this portal in Safari first</p>
+                            <p className="leading-6">{iosBrowser === 'chrome' ? 'Chrome on iPhone cannot install this web app directly.' : 'Camera and in-app browsers cannot install this web app directly.'} Open the same portal in Safari, then use Safari&apos;s Share -&gt; Add to Home Screen.</p>
+                            <button type="button" onClick={openInSafari} className="w-full rounded-lg bg-slate-900 px-4 py-3 font-medium text-white transition-colors hover:bg-slate-800">Open in Safari</button>
+                            <p className="text-xs leading-5 text-amber-800">If Safari does not open, use the browser menu: Chrome&apos;s three dots -&gt; Open in Safari, or the Camera QR view&apos;s Compass icon.</p>
                         </div>
                     ) : (
                         <button type="button" onClick={handleInstallClick} className="w-full rounded-xl bg-slate-900 py-3 font-medium text-white transition-all hover:bg-slate-800">
