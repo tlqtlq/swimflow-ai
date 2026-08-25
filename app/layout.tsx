@@ -1,11 +1,20 @@
 import './globals.css'
+import type { Metadata } from 'next'
 import React from 'react'
 import Header from '../components/Header'
 import ServiceWorkerRegistration from '../components/ServiceWorkerRegistration'
 
-export const metadata = {
+export const metadata: Metadata = {
     title: 'SwimFlow.ai | Optimize The Meet',
-    description: 'Meet automation for swim teams'
+    description: 'Meet automation for swim teams',
+    appleWebApp: {
+        capable: true,
+        statusBarStyle: 'default',
+        title: 'SwimFlow',
+    },
+    icons: {
+        apple: '/logo.png',
+    },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
