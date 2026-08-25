@@ -1,12 +1,14 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import HeatAlertControls from '@/components/HeatAlertControls'
 
 type EventRow = { id: string; name: string; course?: string | null }
 type Entry = { id: string; event_id: string; lane_number?: number | null; lane?: number | null; swimmer_name?: string | null; team_code?: string | null; heat_number?: number | null; heat?: number | null; seed_time?: string | null; result_time?: string | null; place?: number | null }
+type RosterEntry = { id: string; event_name: string; swimmer_name: string; team_code?: string | null; seed_time?: string | null }
 
 type BeforeInstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }> }
 
@@ -16,8 +18,10 @@ const getSupabaseBrowserClient = () => {
     return url && key ? createClient(url, key, { auth: { persistSession: false } }) : null
 }
 
-export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, meetDate, accentColor, bannerUrl, locationAddress, events, initialEntries, currentEventId, currentHeat, courseType }: { meetId: string; meetName: string; meetLocation: string; meetDate?: string | null; accentColor?: string | null; bannerUrl?: string | null; locationAddress?: string | null; events: EventRow[]; initialEntries: Entry[]; currentEventId?: string | null; currentHeat: number; courseType: string }) {
+export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, meetDate, accentColor, bannerUrl, locationAddress, events, initialEntries, initialRosterEntries, currentEventId, currentHeat, courseType }: { meetId: string; meetName: string; meetLocation: string; meetDate?: string | null; accentColor?: string | null; bannerUrl?: string | null; locationAddress?: string | null; events: EventRow[]; initialEntries: Entry[]; initialRosterEntries?: RosterEntry[]; currentEventId?: string | null; currentHeat: number; courseType: string }) {
+    const router = useRouter()
     const [entries, setEntries] = useState(initialEntries)
+    const [rosterEntries, setRosterEntries] = useState(initialRosterEntries ?? [])
     const [displayName, setDisplayName] = useState(meetName)
     const [displayLocation, setDisplayLocation] = useState(meetLocation)
     const [displayDate, setDisplayDate] = useState(meetDate ?? '')
@@ -43,11 +47,26 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
         latestDeckEventId.current = currentEventId ?? latestDeckEventId.current
     }, [currentEventId, currentHeat])
 
+    const fetchEntries = useCallback(async () => {
+        const supabase = getSupabaseBrowserClient()
+        if (!supabase) return
+
+        const { data } = await supabase
+            .from('entries')
+            .select('id, event_name, swimmer_name, team_code, seed_time')
+            .eq('meet_id', meetId)
+            .order('event_name')
+            .order('swimmer_name')
+
+        if (data) setRosterEntries(data as RosterEntry[])
+    }, [meetId])
+
     useEffect(() => {
         const supabase = getSupabaseBrowserClient()
         if (!supabase) return
-        const channel = supabase.channel(`schema-db-changes-${meetId}`)
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'meets', filter: `id=eq.${meetId}` }, (payload) => {
+
+        const channel = supabase.channel(`meet-${meetId}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'meets', filter: `id=eq.${meetId}` }, (payload) => {
                 const updatedMeet = payload.new as { current_event_id?: string | null; current_heat_number?: number; current_heat?: number; course_type?: string; name?: string; location?: string | null; meet_date?: string | null; accent_color?: string | null; primary_color?: string | null; banner_url?: string | null }
                 const nextEventId = updatedMeet.current_event_id ?? latestDeckEventId.current
                 const nextHeat = updatedMeet.current_heat ?? updatedMeet.current_heat_number
@@ -65,12 +84,18 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
                 if (updatedMeet.meet_date !== undefined) setDisplayDate(updatedMeet.meet_date || '')
                 if (updatedMeet.accent_color || updatedMeet.primary_color) setDisplayAccentColor(updatedMeet.accent_color ?? updatedMeet.primary_color ?? '#003296')
                 if (updatedMeet.banner_url !== undefined) setDisplayBannerUrl(updatedMeet.banner_url || null)
+                router.refresh()
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'entries', filter: `meet_id=eq.${meetId}` }, () => {
+                void fetchEntries()
+                router.refresh()
             })
             .subscribe((status) => {
                 if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.warn('Meet Realtime subscription failed:', status)
             })
+
         return () => { void supabase.removeChannel(channel) }
-    }, [meetId])
+    }, [meetId, router, fetchEntries])
 
     const eventFilter = events.map((event) => event.id).join(',')
     useEffect(() => {
@@ -81,10 +106,11 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
             .on('postgres_changes', { event: '*', schema: 'public', table: 'meet_entries', filter: `event_id=in.(${eventFilter})` }, (payload) => {
                 if (payload.eventType === 'DELETE') setEntries((current) => current.filter((entry) => entry.id !== payload.old.id))
                 else setEntries((current) => current.some((entry) => entry.id === payload.new.id) ? current.map((entry) => entry.id === payload.new.id ? payload.new as Entry : entry) : [...current, payload.new as Entry])
+                router.refresh()
             })
             .subscribe()
         return () => { void supabase.removeChannel(channel) }
-    }, [eventFilter, meetId])
+    }, [eventFilter, meetId, router])
 
     const activeEventIndex = events.findIndex((event) => event.id === activeEventId)
     const activeEvent = activeEventIndex >= 0 ? events[activeEventIndex] : null
