@@ -1,5 +1,6 @@
 'use client'
 
+import { X } from 'lucide-react'
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
@@ -25,7 +26,7 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
     const [activeEventId, setActiveEventId] = useState(currentEventId ?? '')
     const [activeHeat, setActiveHeat] = useState(currentHeat)
     const [course, setCourse] = useState(courseType)
-    const [showInstallDrawer, setShowInstallDrawer] = useState(false)
+    const [showInstallModal, setShowInstallModal] = useState(false)
     const [isIOS, setIsIOS] = useState(false)
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
     const [installMessage, setInstallMessage] = useState('')
@@ -47,7 +48,7 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
         const userAgent = navigator.userAgent
         const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent)
         setIsIOS(isIOSDevice)
-        setShowInstallDrawer(true)
+        setShowInstallModal(true)
 
         const captureInstallPrompt = (event: Event) => {
             event.preventDefault()
@@ -55,7 +56,7 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
         }
         const closeInstallDrawer = () => {
             setDeferredInstallPrompt(null)
-            setShowInstallDrawer(false)
+            setShowInstallModal(false)
         }
         window.addEventListener('beforeinstallprompt', captureInstallPrompt)
         window.addEventListener('appinstalled', closeInstallDrawer)
@@ -135,7 +136,7 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
             await deferredInstallPrompt.prompt()
             const choice = await deferredInstallPrompt.userChoice
             setDeferredInstallPrompt(null)
-            if (choice.outcome === 'accepted') setShowInstallDrawer(false)
+            if (choice.outcome === 'accepted') setShowInstallModal(false)
             else setInstallMessage('Installation was not completed. You can continue in the browser.')
         } catch {
             setInstallMessage('Installation could not be started. You can continue in the browser.')
@@ -185,36 +186,37 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
 
             <footer className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-5">
                 <p className="text-sm font-medium text-slate-300">Heat alerts</p>
-                <HeatAlertControls meetId={meetId} className="shrink-0" onInstallRequired={() => setShowInstallDrawer(true)} />
+                <HeatAlertControls meetId={meetId} className="shrink-0" onInstallRequired={() => setShowInstallModal(true)} />
             </footer>
         </section>
 
-        {showInstallDrawer ? <div className="fixed inset-0 z-[60] flex items-end bg-slate-950/50 p-0 sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="install-swimflow-title">
-            <div className="w-full max-w-lg rounded-t-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl sm:rounded-2xl" style={{ animation: 'portal-install-drawer 240ms ease-out' }}>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">SwimFlow</p>
-                <h2 id="install-swimflow-title" className="mt-2 text-xl font-semibold">Get Live Heat Alerts on Your Lock Screen</h2>
-                <p className="mt-3 text-sm leading-6 text-slate-600">Install SwimFlow to receive instant alerts when your swimmer is on deck.</p>
-                <div className="mt-5">
+        {showInstallModal && (
+            <div className="fixed inset-0 z-50 bg-slate-950/50" role="dialog" aria-modal="true" aria-labelledby="install-swimflow-title">
+                <div className="fixed inset-x-0 bottom-0 mx-auto max-w-md rounded-t-2xl border-t border-slate-200 bg-white p-4 shadow-2xl">
+                    <div className="mb-2 flex items-center justify-between gap-4">
+                        <h3 id="install-swimflow-title" className="text-lg font-bold text-slate-900">Get Lock-Screen Heat Alerts</h3>
+                        <button type="button" onClick={() => setShowInstallModal(false)} aria-label="Close install prompt" className="rounded-md p-1 text-slate-400 transition-colors hover:text-slate-600"><X size={18} aria-hidden="true" /></button>
+                    </div>
+
                     {isIOS ? (
-                        <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                            <p className="font-semibold text-slate-900">To enable live lock-screen alerts on iPhone:</p>
+                        <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                            <p className="font-semibold text-slate-900">Install SwimFlow on iPhone:</p>
                             <ol className="list-inside list-decimal space-y-1">
-                                <li>Tap the <strong>Share</strong> button (square with arrow) at the bottom of Safari.</li>
-                                <li>Scroll down and select <strong>Add to Home Screen</strong>.</li>
-                                <li>Open SwimFlow from your home screen!</li>
+                                <li>Tap the <strong>Share</strong> button (square icon with upward arrow) at the bottom.</li>
+                                <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
                             </ol>
-                            <p className="pt-1 text-xs text-slate-500">*If opened from Camera QR scan, tap the Safari/Compass icon in the bottom right first.</p>
+                            <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-700">💡 <strong>Scanned via Camera QR?</strong> Tap the Compass/Safari icon in the bottom-right corner first.</p>
                         </div>
                     ) : (
                         <button type="button" onClick={handleInstallClick} className="w-full rounded-xl bg-slate-900 py-3 font-medium text-white transition-all hover:bg-slate-800">
                             Install App Now
                         </button>
                     )}
+
+                    {installMessage ? <p aria-live="polite" className="mt-3 text-sm text-slate-600">{installMessage}</p> : null}
+                    <button type="button" onClick={() => setShowInstallModal(false)} className="mt-3 w-full py-2 text-sm font-medium text-slate-500 transition-colors hover:text-slate-800">Continue in Browser</button>
                 </div>
-                {installMessage ? <p aria-live="polite" className="mt-3 text-sm text-slate-600">{installMessage}</p> : null}
-                <button type="button" onClick={() => setShowInstallDrawer(false)} className="mt-5 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">Continue in Browser</button>
             </div>
-            <style jsx>{`@keyframes portal-install-drawer { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }`}</style>
-        </div> : null}
+        )}
     </div>
 }
