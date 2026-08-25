@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import type { User } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase-browser'
 
 type ProfileRole = 'meet_host' | 'coach' | 'spectator'
 
