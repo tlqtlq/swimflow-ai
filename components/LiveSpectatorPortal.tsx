@@ -69,23 +69,29 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
         if (data) setRosterEntries(data as RosterEntry[])
     }, [meetId])
 
+    const eventFilter = events.map((event) => event.id).join(',')
+
     useEffect(() => {
         const supabase = getSupabaseBrowserClient()
         if (!supabase) return
 
-        const channel = supabase.channel(`meet-${meetId}`)
+        const channel = supabase.channel(`meet-live-${meetId}`)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'meets', filter: `id=eq.${meetId}` }, (payload) => {
-                const updatedMeet = payload.new as { current_event_id?: string | null; current_heat_number?: number; current_heat?: number; course_type?: string; name?: string; location?: string | null; meet_date?: string | null; accent_color?: string | null; primary_color?: string | null; banner_url?: string | null }
-                const nextEventId = updatedMeet.current_event_id ?? latestDeckEventId.current
-                const nextHeat = updatedMeet.current_heat ?? updatedMeet.current_heat_number
+                const updatedMeet = (payload.new ?? payload.old) as { current_event_id?: string | null; current_heat_number?: number; current_heat?: number; course_type?: string; name?: string; location?: string | null; meet_date?: string | null; accent_color?: string | null; primary_color?: string | null; banner_url?: string | null }
+                if (!updatedMeet) return
+
                 if (updatedMeet.current_event_id) {
                     latestDeckEventId.current = updatedMeet.current_event_id
                     setActiveEventId(updatedMeet.current_event_id)
                 }
-                if (typeof nextHeat === 'number') {
-                    latestHeat.current = nextHeat
-                    setActiveHeat(nextHeat)
+                if (typeof updatedMeet.current_heat === 'number') {
+                    latestHeat.current = updatedMeet.current_heat
+                    setActiveHeat(updatedMeet.current_heat)
+                } else if (typeof updatedMeet.current_heat_number === 'number') {
+                    latestHeat.current = updatedMeet.current_heat_number
+                    setActiveHeat(updatedMeet.current_heat_number)
                 }
+
                 if (updatedMeet.course_type) setCourse(updatedMeet.course_type)
                 if (updatedMeet.name) setDisplayName(updatedMeet.name)
                 if (updatedMeet.location !== undefined) setDisplayLocation(updatedMeet.location || 'Venue to be announced')
@@ -98,14 +104,19 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
                 void fetchEntries()
                 router.refresh()
             })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'meet_entries', filter: `event_id=in.(${eventFilter})` }, (payload) => {
+                if (!eventFilter) return
+                if (payload.eventType === 'DELETE') setEntries((current) => current.filter((entry) => entry.id !== payload.old.id))
+                else setEntries((current) => current.some((entry) => entry.id === payload.new.id) ? current.map((entry) => entry.id === payload.new.id ? payload.new as Entry : entry) : [...current, payload.new as Entry])
+                router.refresh()
+            })
             .subscribe((status) => {
                 if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.warn('Meet Realtime subscription failed:', status)
             })
 
         return () => { void supabase.removeChannel(channel) }
-    }, [meetId, router, fetchEntries])
+    }, [meetId, router, fetchEntries, eventFilter])
 
-    const eventFilter = events.map((event) => event.id).join(',')
     useEffect(() => {
         if (!eventFilter) return
         const supabase = getSupabaseBrowserClient()

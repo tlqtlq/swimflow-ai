@@ -281,6 +281,10 @@ begin
   exception when duplicate_object then null;
   end;
   begin
+    alter publication supabase_realtime add table entries;
+  exception when duplicate_object then null;
+  end;
+  begin
     alter publication supabase_realtime add table heat_announcements;
   exception when duplicate_object then null;
   end;

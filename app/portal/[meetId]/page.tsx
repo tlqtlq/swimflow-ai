@@ -1,6 +1,12 @@
 import { createSupabaseServerClient } from '@/lib/supabase'
 import LiveSpectatorPortal from '@/components/LiveSpectatorPortal'
 
+export async function generateMetadata({ params }: { params: { meetId: string } }) {
+    return {
+        manifest: `/api/manifest?meetId=${params.meetId}`,
+    }
+}
+
 export default async function MeetPortalPage({ params }: { params: { meetId: string } }) {
     const supabase = createSupabaseServerClient()
     if (!supabase) {
