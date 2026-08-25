@@ -3,28 +3,33 @@
 import { CheckCircle, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import MeetBannerUploader from '@/components/MeetBannerUploader'
 
-export default function MeetCustomization({ meetId, name, location, date, accentColor }: { meetId: string; name: string; location?: string | null; date?: string | null; accentColor?: string | null }) {
+type MeetDraft = { name: string; location: string; date: string; accentColor: string; bannerUrl: string | null }
+
+export default function MeetCustomization({ meetId, name, location, date, accentColor, bannerUrl }: { meetId: string; name: string; location?: string | null; date?: string | null; accentColor?: string | null; bannerUrl?: string | null }) {
     const router = useRouter()
     const [meetName, setMeetName] = useState(name)
     const [meetDate, setMeetDate] = useState(date ?? '')
     const [meetLocation, setMeetLocation] = useState(location ?? '')
     const [color, setColor] = useState(accentColor ?? '#003296')
+    const [banner, setBanner] = useState(bannerUrl ?? '')
     const [message, setMessage] = useState('')
     const [saving, setSaving] = useState(false)
     const saveTimer = useRef<number | null>(null)
     const latestSaveId = useRef(0)
-    const savedDraft = useRef({ name, location: location ?? '', date: date ?? '', accentColor: accentColor ?? '#003296' })
+    const savedDraft = useRef<MeetDraft>({ name, location: location ?? '', date: date ?? '', accentColor: accentColor ?? '#003296', bannerUrl: bannerUrl ?? null })
 
     useEffect(() => {
-        const incomingDraft = { name, location: location ?? '', date: date ?? '', accentColor: accentColor ?? '#003296' }
+        const incomingDraft: MeetDraft = { name, location: location ?? '', date: date ?? '', accentColor: accentColor ?? '#003296', bannerUrl: bannerUrl ?? null }
         if (latestSaveId.current && JSON.stringify(incomingDraft) !== JSON.stringify(savedDraft.current)) return
         setMeetName(name)
         setMeetDate(date ?? '')
         setMeetLocation(location ?? '')
         setColor(accentColor ?? '#003296')
+        setBanner(bannerUrl ?? '')
         savedDraft.current = incomingDraft
-    }, [name, date, location, accentColor])
+    }, [name, date, location, accentColor, bannerUrl])
 
     useEffect(() => {
         if (!message) return
@@ -32,11 +37,11 @@ export default function MeetCustomization({ meetId, name, location, date, accent
         return () => window.clearTimeout(timer)
     }, [message])
 
-    const publishDraft = (draft: { name: string; location: string; date: string; accentColor: string }) => {
+    const publishDraft = (draft: MeetDraft) => {
         window.dispatchEvent(new CustomEvent('meet-display-updated', { detail: draft }))
     }
 
-    const save = async (draft = { name: meetName, location: meetLocation, date: meetDate, accentColor: color }, showMessage = true) => {
+    const save = async (draft: MeetDraft = { name: meetName, location: meetLocation, date: meetDate, accentColor: color, bannerUrl: banner || null }, showMessage = true) => {
         const saveId = ++latestSaveId.current
         setSaving(true)
         try {
@@ -51,13 +56,15 @@ export default function MeetCustomization({ meetId, name, location, date, accent
                     meetLocation: draft.location,
                     accentColor: draft.accentColor,
                     primaryColor: draft.accentColor,
+                    bannerUrl: draft.bannerUrl ?? null,
                 }),
             })
-            const result = await response.json() as { message?: string; meet?: { name?: string; location?: string | null; meetDate?: string | null; accentColor?: string | null } }
+            const result = await response.json() as { message?: string; meet?: { name?: string; location?: string | null; meetDate?: string | null; accentColor?: string | null; bannerUrl?: string | null } }
             if (saveId !== latestSaveId.current) return
             if (showMessage || !response.ok) setMessage(response.ok ? 'Meet settings saved.' : result.message ?? 'Unable to save meet settings.')
             if (response.ok) {
-                const acknowledgedDraft = { name: result.meet?.name ?? draft.name, location: result.meet?.location ?? draft.location, date: result.meet?.meetDate ?? draft.date, accentColor: result.meet?.accentColor ?? draft.accentColor }
+                const acknowledgedDraft = { name: result.meet?.name ?? draft.name, location: result.meet?.location ?? draft.location, date: result.meet?.meetDate ?? draft.date, accentColor: result.meet?.accentColor ?? draft.accentColor, bannerUrl: result.meet?.bannerUrl ?? draft.bannerUrl ?? null }
+                setBanner(acknowledgedDraft.bannerUrl ?? '')
                 savedDraft.current = acknowledgedDraft
                 publishDraft(acknowledgedDraft)
             }
@@ -68,7 +75,7 @@ export default function MeetCustomization({ meetId, name, location, date, accent
         }
     }
 
-    const queueSave = (draft: { name: string; location: string; date: string; accentColor: string }) => {
+    const queueSave = (draft: MeetDraft) => {
         publishDraft(draft)
         if (saveTimer.current) window.clearTimeout(saveTimer.current)
         latestSaveId.current += 1
@@ -88,10 +95,13 @@ export default function MeetCustomization({ meetId, name, location, date, accent
                     <button type="button" disabled={saving} onClick={() => void save()} className="rounded-lg bg-[#003296] px-4 py-2 text-sm font-bold text-white shadow hover:bg-[#002878] disabled:opacity-60">{saving ? 'Saving...' : 'Save Meet Settings'}</button>
                 </div>
                 <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
-                    <label className="text-sm font-medium text-slate-700">Meet title<input value={meetName} onChange={(event) => { const name = event.target.value; setMeetName(name); queueSave({ name, location: meetLocation, date: meetDate, accentColor: color }) }} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500" /></label>
-                    <label className="text-sm font-medium text-slate-700">Location<input value={meetLocation} onChange={(event) => { const location = event.target.value; setMeetLocation(location); queueSave({ name: meetName, location, date: meetDate, accentColor: color }) }} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500" /></label>
-                    <label className="text-sm font-medium text-slate-700">Start date<input type="date" value={meetDate} onChange={(event) => { const date = event.target.value; setMeetDate(date); queueSave({ name: meetName, location: meetLocation, date, accentColor: color }) }} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500" /></label>
-                    <label className="text-sm font-medium text-slate-700">Accent color<input type="color" value={color} onChange={(event) => { const accentColor = event.target.value; setColor(accentColor); queueSave({ name: meetName, location: meetLocation, date: meetDate, accentColor }) }} className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-1 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500" /></label>
+                    <label className="text-sm font-medium text-slate-700">Meet title<input value={meetName} onChange={(event) => { const name = event.target.value; setMeetName(name); queueSave({ name, location: meetLocation, date: meetDate, accentColor: color, bannerUrl: banner }) }} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500" /></label>
+                    <label className="text-sm font-medium text-slate-700">Location<input value={meetLocation} onChange={(event) => { const location = event.target.value; setMeetLocation(location); queueSave({ name: meetName, location, date: meetDate, accentColor: color, bannerUrl: banner }) }} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500" /></label>
+                    <label className="text-sm font-medium text-slate-700">Start date<input type="date" value={meetDate} onChange={(event) => { const date = event.target.value; setMeetDate(date); queueSave({ name: meetName, location: meetLocation, date, accentColor: color, bannerUrl: banner }) }} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500" /></label>
+                    <label className="text-sm font-medium text-slate-700">Accent color<input type="color" value={color} onChange={(event) => { const accentColor = event.target.value; setColor(accentColor); queueSave({ name: meetName, location: meetLocation, date: meetDate, accentColor, bannerUrl: banner }) }} className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-slate-300 bg-white p-1 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500" /></label>
+                </div>
+                <div className="border-t border-slate-200 p-6">
+                    <MeetBannerUploader meetId={meetId} bannerUrl={banner} onBannerUrlChange={(nextUrl) => { setBanner(nextUrl ?? ''); void save({ name: meetName, location: meetLocation, date: meetDate, accentColor: color, bannerUrl: nextUrl ?? null }, false) }} />
                 </div>
             </section>
             {message ? (

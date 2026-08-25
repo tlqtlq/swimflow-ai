@@ -22,7 +22,7 @@ export default async function MeetDashboardPage({ params, searchParams }: { para
         (supabase.from('locations' as any) as any).select('*').order('name'),
     ])
 
-    const meet = (meetResult.data ?? null) as { id?: string; name?: string; location?: string | null; location_id?: string | null; course_type?: 'SCY' | 'LCM' | 'SCM'; meet_date?: string | null; paid_until?: string | null; payment_status?: string; is_published?: boolean; status?: string; accent_color?: string | null; current_event_id?: string | null; current_heat_number?: number; current_heat?: number } | null
+    const meet = (meetResult.data ?? null) as { id?: string; name?: string; location?: string | null; location_id?: string | null; course_type?: 'SCY' | 'LCM' | 'SCM'; meet_date?: string | null; paid_until?: string | null; payment_status?: string; is_published?: boolean; status?: string; accent_color?: string | null; banner_url?: string | null; current_event_id?: string | null; current_heat_number?: number; current_heat?: number } | null
     const isLive = meet?.status === 'live' || Boolean(meet?.is_published)
     const events = ((eventsResult.data ?? []) as Array<{ id: string; name: string; course?: string }>)
     const rosterEntries = ((await (supabase.from('entries') as any).select('id, event_name, swimmer_name, team_code, seed_time').eq('meet_id', params.id).order('event_name').order('swimmer_name')).data ?? []) as Array<{ id: string; event_name: string; swimmer_name: string; team_code?: string | null; seed_time?: string | null }>
@@ -54,7 +54,7 @@ export default async function MeetDashboardPage({ params, searchParams }: { para
 
             <section className="grid grid-cols-1 gap-6 lg:grid-cols-12">
                 <div className="space-y-6 lg:col-span-7">
-                    <MeetCustomization meetId={params.id} name={meet?.name ?? 'Swim meet'} location={meet?.location} date={meet?.meet_date} accentColor={meet?.accent_color} />
+                    <MeetCustomization meetId={params.id} name={meet?.name ?? 'Swim meet'} location={meet?.location} date={meet?.meet_date} accentColor={meet?.accent_color} bannerUrl={meet?.banner_url} />
                     <MeetSettings meetId={params.id} courseType={meet?.course_type ?? 'SCY'} locationId={meet?.location_id} locations={locations} />
                 </div>
                 <div className="lg:col-span-5">
