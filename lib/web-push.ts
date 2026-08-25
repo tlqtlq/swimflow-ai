@@ -10,24 +10,32 @@ type PushRecipient = {
     push_subscription: StoredPushSubscription | null
 }
 
+type PushNotificationRequest = {
+    title: string
+    body: string
+    url: string
+    icon?: string
+}
+
 const vapidSubject = process.env.VAPID_SUBJECT
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY
 
-export async function sendHeatAlertPushes(recipients: PushRecipient[], meetId: string, heatNumber: number) {
+export async function sendPushNotifications(recipients: PushRecipient[], payload: PushNotificationRequest) {
     if (!vapidSubject || !vapidPublicKey || !vapidPrivateKey) return []
 
     try {
         webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey)
-        const payload = JSON.stringify({
-            title: 'SwimFlow Heat Alert',
-            body: `Heat ${heatNumber} is now ON DECK!`,
-            icon: '/logo.png',
-            url: `/portal/${meetId}`,
+        const encodedPayload = JSON.stringify({
+            title: payload.title,
+            body: payload.body,
+            icon: payload.icon ?? '/logo.png',
+            url: payload.url,
         })
+
         const results = await Promise.allSettled(recipients.map(async (recipient) => {
             if (!recipient.push_subscription?.endpoint) return { id: recipient.id, statusCode: 0 }
-            await webpush.sendNotification(recipient.push_subscription as Parameters<typeof webpush.sendNotification>[0], payload)
+            await webpush.sendNotification(recipient.push_subscription as Parameters<typeof webpush.sendNotification>[0], encodedPayload)
             return { id: recipient.id, statusCode: 0 }
         }))
 
@@ -40,4 +48,13 @@ export async function sendHeatAlertPushes(recipients: PushRecipient[], meetId: s
         console.warn('Unable to deliver SwimFlow Push notifications:', error)
         return []
     }
+}
+
+export async function sendHeatAlertPushes(recipients: PushRecipient[], meetId: string, heatNumber: number) {
+    return sendPushNotifications(recipients, {
+        title: 'SwimFlow Heat Alert',
+        body: `Heat ${heatNumber} is now ON DECK!`,
+        url: `/portal/${meetId}`,
+        icon: '/logo.png',
+    })
 }
