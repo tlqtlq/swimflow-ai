@@ -1,5 +1,6 @@
 'use client'
 
+import { Plus, Share } from 'lucide-react'
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
@@ -22,7 +23,7 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
     const [displayLocation, setDisplayLocation] = useState(meetLocation)
     const [displayDate, setDisplayDate] = useState(meetDate ?? '')
     const [displayAccentColor, setDisplayAccentColor] = useState(accentColor ?? '#003296')
-    const [activeEventId, setActiveEventId] = useState(currentEventId ?? events[0]?.id ?? '')
+    const [activeEventId, setActiveEventId] = useState(currentEventId ?? '')
     const [activeHeat, setActiveHeat] = useState(currentHeat)
     const [course, setCourse] = useState(courseType)
     const [showInstallDrawer, setShowInstallDrawer] = useState(false)
@@ -30,7 +31,7 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
     const [installMessage, setInstallMessage] = useState('')
     const latestHeat = useRef(currentHeat)
-    const latestDeckEventId = useRef(currentEventId ?? events[0]?.id ?? '')
+    const latestDeckEventId = useRef(currentEventId ?? '')
 
     useEffect(() => {
         setDisplayName(meetName)
@@ -40,10 +41,9 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
     }, [meetName, meetLocation, meetDate, accentColor])
 
     useEffect(() => {
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
         const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean }
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || Boolean(navigatorWithStandalone.standalone)
-        if (!isMobile || isStandalone) return
+        if (isStandalone) return
 
         setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent))
         setShowInstallDrawer(true)
@@ -52,14 +52,22 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
             event.preventDefault()
             setDeferredInstallPrompt(event as BeforeInstallPromptEvent)
         }
+        const closeInstallDrawer = () => {
+            setDeferredInstallPrompt(null)
+            setShowInstallDrawer(false)
+        }
         window.addEventListener('beforeinstallprompt', captureInstallPrompt)
-        return () => window.removeEventListener('beforeinstallprompt', captureInstallPrompt)
+        window.addEventListener('appinstalled', closeInstallDrawer)
+        return () => {
+            window.removeEventListener('beforeinstallprompt', captureInstallPrompt)
+            window.removeEventListener('appinstalled', closeInstallDrawer)
+        }
     }, [])
 
     useEffect(() => {
         if (typeof window === 'undefined') return
         latestHeat.current = currentHeat
-        latestDeckEventId.current = currentEventId ?? events[0]?.id ?? ''
+        latestDeckEventId.current = currentEventId ?? ''
     }, [currentEventId, currentHeat, events])
 
     useEffect(() => {
@@ -113,12 +121,12 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
 
     const activeEventIndex = events.findIndex((event) => event.id === activeEventId)
     const activeEvent = activeEventIndex >= 0 ? events[activeEventIndex] : null
-    const eventTitle = activeEvent
-        ? /^event\s+\d+\s*:/i.test(activeEvent.name) ? activeEvent.name : `Event ${activeEventIndex + 1}: ${activeEvent.name}`
-        : 'No event on deck'
+    const eventTitle = activeEvent?.name ?? 'No event on deck'
     const activeHeatEntries = entries
         .filter((entry) => entry.event_id === activeEventId && (entry.heat_number ?? entry.heat ?? 1) === activeHeat)
         .sort((firstEntry, secondEntry) => (firstEntry.lane_number ?? firstEntry.lane ?? Number.MAX_SAFE_INTEGER) - (secondEntry.lane_number ?? secondEntry.lane ?? Number.MAX_SAFE_INTEGER))
+    const lanes = Array.from({ length: 8 }, (_, index) => index + 1)
+    const entryByLane = new Map(activeHeatEntries.map((entry) => [entry.lane_number ?? entry.lane, entry]))
     const installSwimFlow = async () => {
         if (!deferredInstallPrompt) return
 
@@ -138,8 +146,8 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
             <div className="flex min-w-0 items-center gap-3">
                 <Image src="/logo.png" alt="SwimFlow" width={160} height={32} className="h-7 w-auto object-contain" priority />
                 <div className="min-w-0 border-l border-slate-200 pl-3">
-                    <h1 className="truncate text-base font-semibold text-slate-950">{displayName}</h1>
-                    <p className="truncate text-sm text-slate-500">{displayLocation}</p>
+                    <h1 className="truncate text-base font-semibold text-slate-950">{displayName} <span className="text-slate-400">&#8226;</span> {displayLocation}</h1>
+                    {displayDate ? <p className="mt-0.5 text-sm text-slate-500">{displayDate}</p> : null}
                 </div>
             </div>
             <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700"><span aria-hidden="true">🔴</span> LIVE</span>
@@ -158,10 +166,13 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
             </div>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                {activeHeatEntries.length > 0 ? activeHeatEntries.map((entry) => <div key={entry.id} className="flex min-h-20 items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-800 text-sm font-bold text-sky-200">{entry.lane_number ?? entry.lane ?? '-'}</span>
-                    <div className="min-w-0"><p className="truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Lane {entry.lane_number ?? entry.lane ?? '-'}</p><p className="truncate text-sm font-semibold text-white">{entry.team_code ?? entry.swimmer_name ?? 'Assignment pending'}</p>{entry.team_code && entry.swimmer_name ? <p className="truncate text-sm text-slate-400">{entry.swimmer_name}</p> : null}</div>
-                </div>) : <div className="rounded-xl border border-dashed border-slate-700 px-4 py-6 text-center text-sm text-slate-400 sm:col-span-2">Lane assignments will appear when this heat is ready.</div>}
+                {lanes.map((lane) => {
+                    const entry = entryByLane.get(lane)
+                    return <div key={lane} className={`flex min-h-20 items-center gap-3 rounded-xl border px-4 py-3 ${entry ? 'border-slate-800 bg-slate-950/60' : 'border-slate-800/80 bg-slate-950/30'}`}>
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-800 text-sm font-bold text-sky-200">{lane}</span>
+                        <div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Lane {lane}</p><p className={`truncate text-sm font-semibold ${entry ? 'text-white' : 'text-slate-500'}`}>{entry?.team_code ?? entry?.swimmer_name ?? 'Awaiting assignment'}</p>{entry?.team_code && entry.swimmer_name ? <p className="truncate text-sm text-slate-400">{entry.swimmer_name}</p> : null}</div>
+                    </div>
+                })}
             </div>
 
             <footer className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-5">
@@ -173,9 +184,9 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
         {showInstallDrawer ? <div className="fixed inset-0 z-[60] flex items-end bg-slate-950/50 p-0 sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="install-swimflow-title">
             <div className="w-full max-w-lg rounded-t-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl sm:rounded-2xl" style={{ animation: 'portal-install-drawer 240ms ease-out' }}>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">SwimFlow</p>
-                <h2 id="install-swimflow-title" className="mt-2 text-xl font-semibold">Add SwimFlow to Home Screen</h2>
-                <p className="mt-3 text-sm leading-6 text-slate-600">Get instant lock-screen notifications when your swimmer is on deck.</p>
-                {isIOS ? <p className="mt-4 rounded-xl bg-slate-100 p-4 text-sm leading-6 text-slate-700">Tap the Share icon (square with arrow) at the bottom of Safari, then select &quot;Add to Home Screen&quot;.</p> : <div className="mt-5"><button type="button" onClick={() => void installSwimFlow()} disabled={!deferredInstallPrompt} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-wait disabled:bg-slate-300">{deferredInstallPrompt ? 'Install SwimFlow' : 'Preparing installation...'}</button>{!deferredInstallPrompt ? <p className="mt-3 text-sm text-slate-500">Use your browser menu to install SwimFlow if the install option does not appear.</p> : null}</div>}
+                <h2 id="install-swimflow-title" className="mt-2 text-xl font-semibold">Get Live Heat Alerts on Your Lock Screen</h2>
+                <p className="mt-3 text-sm leading-6 text-slate-600">Install SwimFlow to receive instant alerts when your swimmer is on deck.</p>
+                {isIOS ? <div className="mt-5 space-y-3 rounded-xl bg-slate-100 p-4 text-sm text-slate-700"><div className="flex items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-sky-700 shadow-sm"><Share size={17} aria-hidden="true" /></span><p><span className="font-semibold">Step 1:</span> Tap the Share button at the bottom of Safari.</p></div><div className="flex items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-sky-700 shadow-sm"><Plus size={18} aria-hidden="true" /></span><p><span className="font-semibold">Step 2:</span> Scroll down and tap &quot;Add to Home Screen.&quot;</p></div></div> : <div className="mt-5">{deferredInstallPrompt ? <button type="button" onClick={() => void installSwimFlow()} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800">Install App Now</button> : <p className="rounded-xl bg-slate-100 p-4 text-sm leading-6 text-slate-600">Use your browser menu to install SwimFlow when the install option becomes available.</p>}</div>}
                 {installMessage ? <p aria-live="polite" className="mt-3 text-sm text-slate-600">{installMessage}</p> : null}
                 <button type="button" onClick={() => setShowInstallDrawer(false)} className="mt-5 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">Continue in Browser</button>
             </div>
