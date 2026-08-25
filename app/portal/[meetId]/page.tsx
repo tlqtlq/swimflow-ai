@@ -7,7 +7,7 @@ export default async function MeetPortalPage({ params }: { params: { meetId: str
         return <div className="container py-10 text-slate-600">Supabase is not configured.</div>
     }
 
-    const meet = (await supabase.from('meets').select('*').eq('id', params.meetId).single()).data as { name?: string | null; location?: string | null; location_id?: string | null; meet_date?: string | null; accent_color?: string | null; course_type?: 'SCY' | 'LCM' | 'SCM'; status?: string; is_published?: boolean; current_event_id?: string | null; current_heat_number?: number; current_heat?: number } | null
+    const meet = (await supabase.from('meets').select('*').eq('id', params.meetId).single()).data as { name?: string | null; location?: string | null; location_id?: string | null; meet_date?: string | null; accent_color?: string | null; banner_url?: string | null; course_type?: 'SCY' | 'LCM' | 'SCM'; status?: string; is_published?: boolean; current_event_id?: string | null; current_heat_number?: number; current_heat?: number } | null
     if (!meet || (!meet.is_published && !['published', 'live', 'completed'].includes(meet.status ?? ''))) {
         return <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-600">This meet portal is not published yet.</div>
     }
@@ -22,5 +22,5 @@ export default async function MeetPortalPage({ params }: { params: { meetId: str
         ? (await supabase.from('meet_entries').select('*').in('event_id', eventIds).not('heat_number', 'is', null).order('heat_number', { ascending: true }).order('lane_number', { ascending: true })).data ?? []
         : []) as Array<{ id: string; event_id: string; lane_number?: number | null; lane?: number | null; swimmer_name?: string | null; team_code?: string | null; heat_number?: number | null; heat?: number | null; seed_time?: string | null; result_time?: string | null; place?: number | null }>
 
-    return <div className="mx-auto max-w-3xl py-8"><LiveSpectatorPortal meetId={params.meetId} meetName={meet.name ?? 'Meet'} meetLocation={location?.name ?? meet.location ?? 'Venue to be announced'} meetDate={meet.meet_date ?? null} accentColor={meet.accent_color ?? null} locationAddress={location?.address ?? null} events={activeEvents} initialEntries={entries} rosterEntries={rosterEntries} currentEventId={meet.current_event_id} currentHeat={meet.current_heat ?? meet.current_heat_number ?? 1} courseType={meet.course_type ?? 'SCY'} /></div>
+    return <div className="mx-auto max-w-md py-4 sm:py-6"><LiveSpectatorPortal meetId={params.meetId} meetName={meet.name ?? 'Meet'} meetLocation={location?.name ?? meet.location ?? 'Venue to be announced'} meetDate={meet.meet_date ?? null} accentColor={meet.accent_color ?? null} bannerUrl={meet.banner_url ?? null} locationAddress={location?.address ?? null} events={activeEvents} initialEntries={entries} currentEventId={meet.current_event_id} currentHeat={meet.current_heat ?? meet.current_heat_number ?? 1} courseType={meet.course_type ?? 'SCY'} /></div>
 }

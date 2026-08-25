@@ -1,37 +1,86 @@
 'use client'
 
-import { ChevronRight, Radio } from 'lucide-react'
 import { useState } from 'react'
 
 const heats = [
-    { event: '200 Medley Relay', heat: 1, lanes: ['Northside Aquatics', 'Cedar Rapids Swim', 'Bluewater Club', 'Harbor Swim Team'] },
-    { event: '100 Freestyle', heat: 2, lanes: ['Summit Swim Club', 'Metro Aquatics', 'Cedar Rapids Swim', 'Northside Aquatics'] },
-    { event: '100 Breaststroke', heat: 3, lanes: ['Bluewater Club', 'Harbor Swim Team', 'Summit Swim Club', 'Metro Aquatics'] },
+    {
+        eventNumber: 12,
+        eventName: 'Girls 50 Yard Freestyle',
+        heat: 3,
+        lanes: [
+            { lane: 1, swimmer: 'M. Evans', team: 'NPA', seed: '25.98' },
+            { lane: 2, swimmer: 'R. Kim', team: 'RBC', seed: '25.70' },
+            { lane: 3, swimmer: 'S. Brooks', team: 'LAC', seed: '25.86' },
+            { lane: 4, swimmer: 'T. Lewis', team: 'CSD', seed: '25.92' },
+            { lane: 5, swimmer: 'J. Wu', team: 'MTS', seed: '25.81' },
+            { lane: 6, swimmer: 'A. Patel', team: 'NWS', seed: '25.76' },
+            { lane: 7, swimmer: 'L. Diaz', team: 'BSC', seed: '25.95' },
+            { lane: 8, swimmer: 'K. Allen', team: 'CVA', seed: '26.02' },
+        ],
+    },
+    {
+        eventNumber: 13,
+        eventName: 'Boys 100 Yard Butterfly',
+        heat: 2,
+        lanes: [
+            { lane: 1, swimmer: 'A. Hall', team: 'RBC', seed: '58.22' },
+            { lane: 2, swimmer: 'J. Ross', team: 'NPA', seed: '57.65' },
+            { lane: 3, swimmer: 'E. Flores', team: 'LAC', seed: '58.44' },
+            { lane: 4, swimmer: 'M. Shah', team: 'MTS', seed: '57.93' },
+            { lane: 5, swimmer: 'N. Cole', team: 'CVA', seed: '58.01' },
+            { lane: 6, swimmer: 'D. Hughes', team: 'BSC', seed: '57.80' },
+            { lane: 7, swimmer: 'T. Smith', team: 'CSD', seed: '58.18' },
+            { lane: 8, swimmer: 'P. Adams', team: 'NWS', seed: '58.60' },
+        ],
+    },
 ]
 
 export default function LandingDeckDemo() {
     const [heatIndex, setHeatIndex] = useState(0)
     const heat = heats[heatIndex]
 
-    const nextHeat = () => setHeatIndex((current) => (current + 1) % heats.length)
-
     return (
-        <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/30">
-            <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-4 py-3">
-                <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-red-400" /><span className="h-2.5 w-2.5 rounded-full bg-amber-300" /><span className="h-2.5 w-2.5 rounded-full bg-emerald-400" /></div>
-                <p className="text-xs font-medium text-slate-400">deck.swimflow.ai/live</p>
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-400"><Radio size={13} /> LIVE</span>
-            </div>
-            <div className="grid lg:grid-cols-[11rem_1fr]">
-                <aside className="border-b border-slate-800 bg-slate-900/70 p-4 lg:border-b-0 lg:border-r">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">On deck</p>
-                    <div className="mt-4 space-y-3 text-sm"><p className="font-medium text-white">Event {heatIndex + 4}</p><p className="text-slate-400">Heat {heat.heat}</p><p className="text-slate-400">SCY</p></div>
-                </aside>
-                <div className="p-5">
-                    <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-sky-400">Current heat</p><h3 className="mt-1 text-xl font-semibold text-white">{heat.event}</h3></div><span className="rounded-full bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-300">Heat {heat.heat}</span></div>
-                    <div className="mt-5 grid gap-2 sm:grid-cols-2">{heat.lanes.map((team, index) => <div key={team} className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2.5"><span className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-800 text-xs font-semibold text-slate-300">{index + 2}</span><span className="text-sm font-medium text-slate-200">{team}</span></div>)}</div>
-                    <button type="button" onClick={nextHeat} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-sky-100">Next Heat <ChevronRight size={16} /></button>
+        <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-slate-100 shadow-[0_25px_60px_rgba(15,23,42,0.18)]">
+            <div className="relative h-36 w-full bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.35),_transparent_35%),linear-gradient(135deg,#0f172a,#111827_35%,#020617)]">
+                <div className="absolute inset-x-0 top-0 flex items-start justify-between p-4 text-white">
+                    <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-sky-200">Live results</p>
+                        <h3 className="mt-1 text-lg font-black leading-none">Northside Invite</h3>
+                        <p className="mt-1 text-xs text-slate-200">Lakeview Aquatic Center</p>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/80 bg-red-500/20 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.18em] text-red-100"><span aria-hidden="true">🔴</span> LIVE</span>
                 </div>
+            </div>
+
+            <div className="bg-slate-100 px-4 pb-4 pt-3">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Current event</p>
+                            <h4 className="mt-1 text-lg font-black text-slate-950">Event {heat.eventNumber} — {heat.eventName}</h4>
+                        </div>
+                        <div className="rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white">SCY</div>
+                    </div>
+                    <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700"><span className="font-bold text-slate-950">Heat {heat.heat} of 8</span> · On deck</div>
+                </div>
+
+                <div className="mt-4 space-y-2">
+                    {heat.lanes.map((lane) => (
+                        <div key={`${lane.lane}-${lane.swimmer}`} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-base font-black text-white">{lane.lane}</div>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-3">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Lane {lane.lane}</p>
+                                    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{lane.seed}</span>
+                                </div>
+                                <p className="mt-1 truncate text-base font-bold text-slate-900">{lane.team}</p>
+                                <p className="truncate text-sm text-slate-500">{lane.swimmer}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <button type="button" onClick={() => setHeatIndex((current) => (current + 1) % heats.length)} className="mt-4 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white transition hover:bg-slate-800">Next Heat</button>
             </div>
         </div>
     )

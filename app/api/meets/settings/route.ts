@@ -17,6 +17,7 @@ export async function POST(request: Request) {
         meetLocation?: string
         accentColor?: string
         primaryColor?: string
+        bannerUrl?: string | null
     }
 
     if (!body.meetId) {
@@ -51,6 +52,7 @@ export async function POST(request: Request) {
 
     if (body.meetDate) update.meet_date = body.meetDate
     if (body.meetLocation !== undefined) update.location = body.meetLocation.trim() || null
+    if (body.bannerUrl !== undefined) update.banner_url = body.bannerUrl?.trim() || null
 
     const updateMeet = (values: Record<string, string | null>) => (supabase.from('meets' as any) as any).update(values).eq('id', body.meetId)
     const accentColor = body.accentColor ?? body.primaryColor
@@ -95,6 +97,7 @@ export async function POST(request: Request) {
             location: savedMeetResult.data.location,
             meetDate: savedMeetResult.data.meet_date,
             accentColor: savedMeetResult.data.accent_color ?? savedMeetResult.data.primary_color ?? colorValue,
+            bannerUrl: savedMeetResult.data.banner_url ?? null,
         },
     })
 }

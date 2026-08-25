@@ -34,6 +34,7 @@ export type Meet = {
     stripe_checkout_session_id: string | null
     paid_until: string | null
     accent_color: string | null
+    banner_url: string | null
     created_at: string
 }
 

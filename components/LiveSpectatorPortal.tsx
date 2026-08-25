@@ -1,16 +1,14 @@
 'use client'
 
-import { X } from 'lucide-react'
 import Image from 'next/image'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import HeatAlertControls from '@/components/HeatAlertControls'
 
 type EventRow = { id: string; name: string; course?: string | null }
 type Entry = { id: string; event_id: string; lane_number?: number | null; lane?: number | null; swimmer_name?: string | null; team_code?: string | null; heat_number?: number | null; heat?: number | null; seed_time?: string | null; result_time?: string | null; place?: number | null }
-type RosterEntry = { id: string; event_name: string; swimmer_name: string; team_code?: string | null; seed_time?: string | null }
+
 type BeforeInstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }> }
-type IOSBrowser = 'safari' | 'chrome' | 'other' | null
 
 const getSupabaseBrowserClient = () => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -18,76 +16,41 @@ const getSupabaseBrowserClient = () => {
     return url && key ? createClient(url, key, { auth: { persistSession: false } }) : null
 }
 
-export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, meetDate, accentColor, locationAddress, events, initialEntries, rosterEntries, currentEventId, currentHeat, courseType }: { meetId: string; meetName: string; meetLocation: string; meetDate?: string | null; accentColor?: string | null; locationAddress?: string | null; events: EventRow[]; initialEntries: Entry[]; rosterEntries: RosterEntry[]; currentEventId?: string | null; currentHeat: number; courseType: string }) {
+export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, meetDate, accentColor, bannerUrl, locationAddress, events, initialEntries, currentEventId, currentHeat, courseType }: { meetId: string; meetName: string; meetLocation: string; meetDate?: string | null; accentColor?: string | null; bannerUrl?: string | null; locationAddress?: string | null; events: EventRow[]; initialEntries: Entry[]; currentEventId?: string | null; currentHeat: number; courseType: string }) {
     const [entries, setEntries] = useState(initialEntries)
     const [displayName, setDisplayName] = useState(meetName)
     const [displayLocation, setDisplayLocation] = useState(meetLocation)
     const [displayDate, setDisplayDate] = useState(meetDate ?? '')
     const [displayAccentColor, setDisplayAccentColor] = useState(accentColor ?? '#003296')
-    const [activeEventId, setActiveEventId] = useState(currentEventId ?? '')
+    const [displayBannerUrl, setDisplayBannerUrl] = useState(bannerUrl ?? null)
+    const [activeEventId, setActiveEventId] = useState(currentEventId ?? (events[0]?.id ?? ''))
     const [activeHeat, setActiveHeat] = useState(currentHeat)
     const [course, setCourse] = useState(courseType)
-    const [showInstallModal, setShowInstallModal] = useState(false)
-    const [isIOS, setIsIOS] = useState(false)
-    const [iosBrowser, setIOSBrowser] = useState<IOSBrowser>(null)
-    const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-    const [installMessage, setInstallMessage] = useState('')
     const latestHeat = useRef(currentHeat)
-    const latestDeckEventId = useRef(currentEventId ?? '')
+    const latestDeckEventId = useRef(currentEventId ?? (events[0]?.id ?? ''))
 
     useEffect(() => {
         setDisplayName(meetName)
         setDisplayLocation(meetLocation)
         setDisplayDate(meetDate ?? '')
         setDisplayAccentColor(accentColor ?? '#003296')
-    }, [meetName, meetLocation, meetDate, accentColor])
-
-    useEffect(() => {
-        const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean }
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || Boolean(navigatorWithStandalone.standalone)
-        if (isStandalone) return
-
-        const userAgent = navigator.userAgent
-        const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
-        const isIOSDevice = /iPad|iPhone|iPod|CriOS|FxiOS|OPiOS|EdgiOS/.test(userAgent) || isIPadOS
-        const isIOSChrome = /CriOS/.test(userAgent)
-        const isIOSSafari = isIOSDevice && /Safari/.test(userAgent) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(userAgent)
-        setIsIOS(isIOSDevice)
-        setIOSBrowser(isIOSDevice ? (isIOSChrome ? 'chrome' : isIOSSafari ? 'safari' : 'other') : null)
-        setShowInstallModal(true)
-
-        const captureInstallPrompt = (event: Event) => {
-            event.preventDefault()
-            setDeferredInstallPrompt(event as BeforeInstallPromptEvent)
-        }
-        const closeInstallDrawer = () => {
-            setDeferredInstallPrompt(null)
-            setShowInstallModal(false)
-        }
-        window.addEventListener('beforeinstallprompt', captureInstallPrompt)
-        window.addEventListener('appinstalled', closeInstallDrawer)
-        return () => {
-            window.removeEventListener('beforeinstallprompt', captureInstallPrompt)
-            window.removeEventListener('appinstalled', closeInstallDrawer)
-        }
-    }, [])
+        setDisplayBannerUrl(bannerUrl ?? null)
+    }, [meetName, meetLocation, meetDate, accentColor, bannerUrl])
 
     useEffect(() => {
         if (typeof window === 'undefined') return
         latestHeat.current = currentHeat
-        latestDeckEventId.current = currentEventId ?? ''
-    }, [currentEventId, currentHeat, events])
+        latestDeckEventId.current = currentEventId ?? latestDeckEventId.current
+    }, [currentEventId, currentHeat])
 
     useEffect(() => {
         const supabase = getSupabaseBrowserClient()
         if (!supabase) return
         const channel = supabase.channel(`schema-db-changes-${meetId}`)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'meets', filter: `id=eq.${meetId}` }, (payload) => {
-                const updatedMeet = payload.new as { current_event_id?: string | null; current_heat_number?: number; current_heat?: number; course_type?: string; name?: string; location?: string | null; meet_date?: string | null; accent_color?: string | null; primary_color?: string | null }
+                const updatedMeet = payload.new as { current_event_id?: string | null; current_heat_number?: number; current_heat?: number; course_type?: string; name?: string; location?: string | null; meet_date?: string | null; accent_color?: string | null; primary_color?: string | null; banner_url?: string | null }
                 const nextEventId = updatedMeet.current_event_id ?? latestDeckEventId.current
                 const nextHeat = updatedMeet.current_heat ?? updatedMeet.current_heat_number
-                const eventChanged = Boolean(updatedMeet.current_event_id && updatedMeet.current_event_id !== latestDeckEventId.current)
-                const heatChanged = typeof nextHeat === 'number' && nextHeat !== latestHeat.current
                 if (updatedMeet.current_event_id) {
                     latestDeckEventId.current = updatedMeet.current_event_id
                     setActiveEventId(updatedMeet.current_event_id)
@@ -96,22 +59,18 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
                     latestHeat.current = nextHeat
                     setActiveHeat(nextHeat)
                 }
-                if ((eventChanged || heatChanged) && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-                    const eventIndex = events.findIndex((event) => event.id === nextEventId)
-                    const eventLabel = eventIndex >= 0 ? `Event ${eventIndex + 1}` : 'Event'
-                    new Notification('SwimFlow Heat Alert', { body: `${eventLabel} - Heat ${nextHeat ?? latestHeat.current} is now ON DECK!`, icon: '/logo.png' })
-                }
                 if (updatedMeet.course_type) setCourse(updatedMeet.course_type)
                 if (updatedMeet.name) setDisplayName(updatedMeet.name)
                 if (updatedMeet.location !== undefined) setDisplayLocation(updatedMeet.location || 'Venue to be announced')
                 if (updatedMeet.meet_date !== undefined) setDisplayDate(updatedMeet.meet_date || '')
                 if (updatedMeet.accent_color || updatedMeet.primary_color) setDisplayAccentColor(updatedMeet.accent_color ?? updatedMeet.primary_color ?? '#003296')
+                if (updatedMeet.banner_url !== undefined) setDisplayBannerUrl(updatedMeet.banner_url || null)
             })
             .subscribe((status) => {
                 if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.warn('Meet Realtime subscription failed:', status)
             })
         return () => { void supabase.removeChannel(channel) }
-    }, [meetId, events])
+    }, [meetId])
 
     const eventFilter = events.map((event) => event.id).join(',')
     useEffect(() => {
@@ -134,107 +93,68 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
         .filter((entry) => entry.event_id === activeEventId && (entry.heat_number ?? entry.heat ?? 1) === activeHeat)
         .sort((firstEntry, secondEntry) => (firstEntry.lane_number ?? firstEntry.lane ?? Number.MAX_SAFE_INTEGER) - (secondEntry.lane_number ?? secondEntry.lane ?? Number.MAX_SAFE_INTEGER))
     const lanes = Array.from({ length: 8 }, (_, index) => index + 1)
-    const entryByLane = new Map(activeHeatEntries.map((entry) => [entry.lane_number ?? entry.lane, entry]))
-    const installSwimFlow = async () => {
-        if (!deferredInstallPrompt) return
+    const entryByLane = useMemo(() => new Map(activeHeatEntries.map((entry) => [entry.lane_number ?? entry.lane, entry])), [activeHeatEntries])
+    const heatLabel = activeEvent ? `Heat ${activeHeat} of ${Math.max(1, activeEvent.name ? 8 : 1)}` : `Heat ${activeHeat}`
 
-        try {
-            await deferredInstallPrompt.prompt()
-            const choice = await deferredInstallPrompt.userChoice
-            setDeferredInstallPrompt(null)
-            if (choice.outcome === 'accepted') setShowInstallModal(false)
-            else setInstallMessage('Installation was not completed. You can continue in the browser.')
-        } catch {
-            setInstallMessage('Installation could not be started. You can continue in the browser.')
-        }
-    }
-    const handleInstallClick = () => {
-        if (!deferredInstallPrompt) {
-            setInstallMessage('Installation is not available from this browser. Use its install option to add SwimFlow to your home screen.')
-            return
-        }
-        void installSwimFlow()
-    }
-    const openInSafari = () => {
-        const currentUrl = new URL(window.location.href)
-        const safariScheme = currentUrl.protocol === 'https:' ? 'x-safari-https://' : 'x-safari-http://'
-        setInstallMessage('If Safari does not open, tap Chrome\'s three-dot menu and choose Open in Safari.')
-        window.location.assign(`${safariScheme}${currentUrl.host}${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`)
-    }
-
-    return <div className="space-y-4">
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
-            <div className="flex min-w-0 items-center gap-3">
-                <Image src="/logo.png" alt="SwimFlow" width={160} height={32} className="h-7 w-auto object-contain" priority />
-                <div className="min-w-0 border-l border-slate-200 pl-3">
-                    <h1 className="truncate text-base font-semibold text-slate-950">{displayName} <span className="text-slate-400">&#8226;</span> {displayLocation}</h1>
-                    {displayDate ? <p className="mt-0.5 text-sm text-slate-500">{displayDate}</p> : null}
-                </div>
-            </div>
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700"><span aria-hidden="true">🔴</span> LIVE</span>
-        </header>
-
-        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-white shadow-2xl" style={{ borderTopColor: displayAccentColor, borderTopWidth: 3 }}>
-            <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-300">On deck</p>
-                    <h2 className="mt-2 text-2xl font-bold leading-tight sm:text-3xl">{eventTitle}</h2>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-slate-800 px-3 py-1.5 text-sm font-semibold text-slate-100">Heat {activeHeat}</span>
-                    <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1.5 text-sm font-semibold text-sky-200">{activeEvent?.course ?? course}</span>
-                </div>
-            </div>
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                {lanes.map((lane) => {
-                    const entry = entryByLane.get(lane)
-                    return <div key={lane} className={`flex min-h-20 items-center gap-3 rounded-xl border px-4 py-3 ${entry ? 'border-slate-800 bg-slate-950/60' : 'border-slate-800/80 bg-slate-950/30'}`}>
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-800 text-sm font-bold text-sky-200">{lane}</span>
-                        <div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Lane {lane}</p><p className={`truncate text-sm font-semibold ${entry ? 'text-white' : 'text-slate-500'}`}>{entry?.team_code ?? entry?.swimmer_name ?? 'Awaiting assignment'}</p>{entry?.team_code && entry.swimmer_name ? <p className="truncate text-sm text-slate-400">{entry.swimmer_name}</p> : null}</div>
+    return (
+        <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-slate-100 shadow-[0_20px_60px_rgba(15,23,42,0.15)]">
+            <div className="relative">
+                <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-slate-950/70 to-transparent" />
+                {displayBannerUrl ? (
+                    <div className="relative h-40 w-full overflow-hidden bg-slate-900">
+                        <Image src={displayBannerUrl} alt={`${displayName} banner`} fill className="object-cover" unoptimized />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-slate-900/20" />
                     </div>
-                })}
+                ) : (
+                    <div className="relative h-40 w-full bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.35),_transparent_40%),linear-gradient(135deg,#0f172a,#111827_35%,#020617)]" />
+                )}
+                <div className="absolute left-4 top-4 right-4 flex items-start justify-between gap-3 text-white">
+                    <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-sky-200">Live results</p>
+                        <h1 className="mt-1 truncate text-lg font-black leading-none">{displayName}</h1>
+                        <p className="mt-1 text-xs text-slate-200">{displayLocation}</p>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/80 bg-red-500/20 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.18em] text-red-100"><span aria-hidden="true">🔴</span> LIVE</span>
+                </div>
             </div>
 
-            <footer className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-5">
-                <p className="text-sm font-medium text-slate-300">Heat alerts</p>
-                <HeatAlertControls meetId={meetId} className="shrink-0" onInstallRequired={() => setShowInstallModal(true)} />
-            </footer>
-        </section>
-
-        {showInstallModal && (
-            <div className="fixed inset-0 z-50 bg-slate-950/50" role="dialog" aria-modal="true" aria-labelledby="install-swimflow-title">
-                <div className="fixed inset-x-0 bottom-0 mx-auto max-w-md rounded-t-2xl border-t border-slate-200 bg-white p-4 shadow-2xl">
-                    <div className="mb-2 flex items-center justify-between gap-4">
-                        <h3 id="install-swimflow-title" className="text-lg font-bold text-slate-900">Get Lock-Screen Heat Alerts</h3>
-                        <button type="button" onClick={() => setShowInstallModal(false)} aria-label="Close install prompt" className="rounded-md p-1 text-slate-400 transition-colors hover:text-slate-600"><X size={18} aria-hidden="true" /></button>
-                    </div>
-
-                    {isIOS ? (
-                        iosBrowser === 'safari' ? <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                            <p className="font-semibold text-slate-900">Install SwimFlow from Safari:</p>
-                            <ol className="list-inside list-decimal space-y-1">
-                                <li>Tap Safari&apos;s <strong>Share</strong> icon in the address bar.</li>
-                                <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
-                                <li>Tap <strong>Add</strong> to finish.</li>
-                            </ol>
-                            <p className="mt-2 rounded-lg border border-sky-200 bg-sky-50 p-2 text-xs text-sky-800">Apple only exposes Add to Home Screen from Safari&apos;s own Share menu. It cannot be opened programmatically by a website.</p>
-                        </div> : <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-                            <p className="font-semibold">Open this portal in Safari first</p>
-                            <p className="leading-6">{iosBrowser === 'chrome' ? 'Chrome on iPhone cannot install this web app directly.' : 'Camera and in-app browsers cannot install this web app directly.'} Open the same portal in Safari, then use Safari&apos;s Share -&gt; Add to Home Screen.</p>
-                            <button type="button" onClick={openInSafari} className="w-full rounded-lg bg-slate-900 px-4 py-3 font-medium text-white transition-colors hover:bg-slate-800">Open in Safari</button>
-                            <p className="text-xs leading-5 text-amber-800">If Safari does not open, use the browser menu: Chrome&apos;s three dots -&gt; Open in Safari, or the Camera QR view&apos;s Compass icon.</p>
+            <div className="bg-slate-100 px-4 pb-4 pt-3">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Current event</p>
+                            <h2 className="mt-1 text-lg font-black text-slate-950">{eventTitle}</h2>
                         </div>
-                    ) : (
-                        <button type="button" onClick={handleInstallClick} className="w-full rounded-xl bg-slate-900 py-3 font-medium text-white transition-all hover:bg-slate-800">
-                            Install App Now
-                        </button>
-                    )}
+                        <div className="rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white">{activeEvent?.course ?? course}</div>
+                    </div>
+                    <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                        <span className="font-bold text-slate-950">Heat {activeHeat}</span> · {heatLabel.replace(`Heat ${activeHeat}`, '').trim() || 'On deck'}
+                    </div>
+                </div>
 
-                    {installMessage ? <p aria-live="polite" className="mt-3 text-sm text-slate-600">{installMessage}</p> : null}
-                    <button type="button" onClick={() => setShowInstallModal(false)} className="mt-3 w-full py-2 text-sm font-medium text-slate-500 transition-colors hover:text-slate-800">Continue in Browser</button>
+                <div className="mt-4 space-y-2">
+                    {lanes.map((lane) => {
+                        const entry = entryByLane.get(lane)
+                        return (
+                            <div key={lane} className={`flex items-center gap-3 rounded-2xl border px-3 py-3 ${entry ? 'border-slate-200 bg-white shadow-sm' : 'border-dashed border-slate-300 bg-slate-50'}`}>
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-base font-black text-white">{lane}</div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Lane {lane}</p>
+                                        {entry?.seed_time ? <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{entry.seed_time}</span> : null}
+                                    </div>
+                                    <p className="mt-1 truncate text-base font-bold text-slate-900">{entry?.team_code ?? entry?.swimmer_name ?? 'Awaiting assignment'}</p>
+                                    {entry?.team_code && entry.swimmer_name ? <p className="truncate text-sm text-slate-500">{entry.swimmer_name}</p> : null}
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-3">
+                    <HeatAlertControls meetId={meetId} tone="light" className="w-full" onInstallRequired={() => undefined} />
                 </div>
             </div>
-        )}
-    </div>
+        </div>
+    )
 }
