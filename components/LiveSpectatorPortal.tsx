@@ -34,6 +34,14 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
     const latestDeckEventId = useRef(currentEventId ?? (events[0]?.id ?? ''))
 
     useEffect(() => {
+        setEntries(initialEntries)
+    }, [initialEntries])
+
+    useEffect(() => {
+        setRosterEntries(initialRosterEntries ?? [])
+    }, [initialRosterEntries])
+
+    useEffect(() => {
         setDisplayName(meetName)
         setDisplayLocation(meetLocation)
         setDisplayDate(meetDate ?? '')
