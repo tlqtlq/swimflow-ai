@@ -1,4 +1,4 @@
-const CACHE_NAME = 'swimflow-shell-v3'
+const CACHE_NAME = 'swimflow-shell-v4'
 const APP_SHELL = ['/', '/logo.png', '/manifest.webmanifest']
 
 self.addEventListener('install', (event) => {
