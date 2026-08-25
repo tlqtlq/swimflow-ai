@@ -23,14 +23,17 @@ export default function HeatAlertControls({ meetId, tone = 'dark', className, on
     useEffect(() => {
         const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean }
         const notificationAvailable = 'Notification' in window
+        const pushAvailable = 'PushManager' in window
+        const supported = notificationAvailable && 'serviceWorker' in navigator && pushAvailable
         setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent))
         setIsStandalone(window.matchMedia('(display-mode: standalone)').matches || Boolean(navigatorWithStandalone.standalone))
-        setNotificationSupported(notificationAvailable)
-        setEnabled(localStorage.getItem(storageKey) === 'enabled' || (notificationAvailable && Notification.permission === 'granted'))
+        setNotificationSupported(supported)
+        const persisted = localStorage.getItem(storageKey) === 'enabled'
+        setEnabled(persisted)
     }, [storageKey])
 
     const savePushSubscription = async () => {
-        if (!('serviceWorker' in navigator)) return false
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false
 
         const registration = await navigator.serviceWorker.ready
         let subscription = await registration.pushManager.getSubscription()
@@ -60,7 +63,8 @@ export default function HeatAlertControls({ meetId, tone = 'dark', className, on
             return
         }
         if (!notificationSupported) {
-            setMessage('Install SwimFlow as an app to manage heat alerts on this device.')
+            setEnabled(false)
+            setMessage('This browser does not support web push notifications. Open SwimFlow from a supported browser or from the installed app to receive heat alerts.')
             return
         }
 
@@ -69,15 +73,25 @@ export default function HeatAlertControls({ meetId, tone = 'dark', className, on
             const permission = await Notification.requestPermission()
             if (permission !== 'granted') {
                 setEnabled(false)
+                localStorage.removeItem(storageKey)
                 setMessage(permission === 'denied' ? 'Notifications are blocked in browser settings. You can try again after changing that setting.' : 'Heat alerts were not enabled. You can try again when ready.')
+                return
+            }
+
+            const subscriptionSaved = await savePushSubscription()
+            if (!subscriptionSaved) {
+                setEnabled(false)
+                localStorage.removeItem(storageKey)
+                setMessage('This browser could not register a push subscription. Please open the app in a supported browser and try again.')
                 return
             }
 
             localStorage.setItem(storageKey, 'enabled')
             setEnabled(true)
-            const subscriptionSaved = await savePushSubscription()
-            setMessage(subscriptionSaved ? 'Heat alerts are enabled on this device.' : 'Heat alerts are enabled while this portal is open.')
+            setMessage('Heat alerts are enabled on this device.')
         } catch {
+            setEnabled(false)
+            localStorage.removeItem(storageKey)
             setMessage('Heat alerts could not be enabled. You can try again when ready.')
         } finally {
             setRequesting(false)
