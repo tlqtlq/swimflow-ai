@@ -4,14 +4,21 @@ import { createSupabaseAdminClient } from '@/lib/supabase'
 type PushSubscriptionPayload = {
     endpoint?: string
     keys?: Record<string, string>
+    trackedSwimmers?: string[] | null
 }
 
 export async function POST(request: Request) {
     try {
-        const { meetId, subscription } = await request.json() as { meetId?: string; subscription?: PushSubscriptionPayload }
+        const { meetId, subscription, trackedSwimmers } = await request.json() as { meetId?: string; subscription?: PushSubscriptionPayload; trackedSwimmers?: string[] }
         const endpoint = subscription?.endpoint?.trim()
         if (!meetId || !endpoint) {
             return NextResponse.json({ message: 'A meet ID and Push subscription endpoint are required.' }, { status: 400 })
+        }
+
+        const normalizedTrackedSwimmers = Array.isArray(trackedSwimmers) ? trackedSwimmers.map((name) => String(name).trim()).filter(Boolean) : []
+        const persistedSubscription = {
+            ...(subscription ?? {}),
+            ...(normalizedTrackedSwimmers.length ? { trackedSwimmers: normalizedTrackedSwimmers } : {}),
         }
 
         const supabase = createSupabaseAdminClient()
@@ -24,13 +31,13 @@ export async function POST(request: Request) {
             .limit(1)
         if (existing.error) return NextResponse.json({ message: existing.error.message }, { status: 500 })
 
-        const values = { push_endpoint: endpoint, push_subscription: subscription }
+        const values = { push_endpoint: endpoint, push_subscription: persistedSubscription }
         const result = existing.data?.[0]?.id
             ? await (supabase.from('subscribers' as any) as any).update(values).eq('id', existing.data[0].id)
             : await (supabase.from('subscribers' as any) as any).insert({ meet_id: meetId, phone_number: null, ...values })
         if (result.error) return NextResponse.json({ message: result.error.message }, { status: 500 })
 
-        return NextResponse.json({ saved: true })
+        return NextResponse.json({ saved: true, trackedSwimmers: normalizedTrackedSwimmers })
     } catch (error) {
         return NextResponse.json({ message: error instanceof Error ? error.message : 'Unable to save the Push subscription.' }, { status: 500 })
     }

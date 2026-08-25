@@ -45,10 +45,11 @@ export default function HeatAlertControls({ meetId, tone = 'dark', className, on
         }
         if (!subscription) return false
 
+        const trackedSwimmers = JSON.parse(localStorage.getItem(`tracked_swimmers_${meetId}`) ?? '[]') as string[]
         const response = await fetch('/api/notifications/push-subscription', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ meetId, subscription: subscription.toJSON() }),
+            body: JSON.stringify({ meetId, subscription: subscription.toJSON(), trackedSwimmers }),
         })
         return response.ok
     }
