@@ -10,7 +10,7 @@ const toApplicationServerKey = (value: string) => {
     return Uint8Array.from(raw, (character) => character.charCodeAt(0))
 }
 
-export default function HeatAlertControls({ meetId, tone = 'dark' }: { meetId: string; tone?: 'dark' | 'light' }) {
+export default function HeatAlertControls({ meetId, tone = 'dark', className, onInstallRequired }: { meetId: string; tone?: 'dark' | 'light'; className?: string; onInstallRequired?: () => void }) {
     const [enabled, setEnabled] = useState(false)
     const [isIOS, setIsIOS] = useState(false)
     const [isStandalone, setIsStandalone] = useState(false)
@@ -52,6 +52,10 @@ export default function HeatAlertControls({ meetId, tone = 'dark' }: { meetId: s
 
     const enableHeatAlerts = async () => {
         if (isIOS && !isStandalone) {
+            if (onInstallRequired) {
+                onInstallRequired()
+                return
+            }
             setShowInstallSheet(true)
             return
         }
@@ -80,8 +84,8 @@ export default function HeatAlertControls({ meetId, tone = 'dark' }: { meetId: s
         }
     }
 
-    return <div className="mt-5">
-        {isIOS && !isStandalone ? <p className="mb-3 rounded-lg border border-sky-300/30 bg-sky-300/10 px-3 py-2 text-sm text-sky-100">Install SwimFlow from Safari for lock-screen heat alerts.</p> : null}
+    return <div className={className ?? 'mt-5'}>
+        {isIOS && !isStandalone && !onInstallRequired ? <p className="mb-3 rounded-lg border border-sky-300/30 bg-sky-300/10 px-3 py-2 text-sm text-sky-100">Install SwimFlow from Safari for lock-screen heat alerts.</p> : null}
         <button type="button" onClick={() => void enableHeatAlerts()} disabled={requesting} className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-sky-100 disabled:cursor-wait disabled:bg-slate-200">
             {requesting ? 'Enabling alerts...' : enabled ? 'Heat alerts enabled' : 'Enable Heat Alerts'}
         </button>
