@@ -1,6 +1,5 @@
 'use client'
 
-import { AlertTriangle, Compass, Plus, Share } from 'lucide-react'
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
@@ -28,8 +27,6 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
     const [course, setCourse] = useState(courseType)
     const [showInstallDrawer, setShowInstallDrawer] = useState(false)
     const [isIOS, setIsIOS] = useState(false)
-    const [isIOSInAppViewer, setIsIOSInAppViewer] = useState(false)
-    const [isAndroid, setIsAndroid] = useState(false)
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
     const [installMessage, setInstallMessage] = useState('')
     const latestHeat = useRef(currentHeat)
@@ -49,10 +46,7 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
 
         const userAgent = navigator.userAgent
         const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent)
-        const isIOSSafari = isIOSDevice && /Safari/.test(userAgent) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(userAgent)
         setIsIOS(isIOSDevice)
-        setIsIOSInAppViewer(isIOSDevice && !isIOSSafari)
-        setIsAndroid(/Android/.test(userAgent))
         setShowInstallDrawer(true)
 
         const captureInstallPrompt = (event: Event) => {
@@ -147,6 +141,13 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
             setInstallMessage('Installation could not be started. You can continue in the browser.')
         }
     }
+    const handleInstallClick = () => {
+        if (!deferredInstallPrompt) {
+            setInstallMessage('Installation is not available from this browser. Use its install option to add SwimFlow to your home screen.')
+            return
+        }
+        void installSwimFlow()
+    }
 
     return <div className="space-y-4">
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
@@ -193,10 +194,23 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">SwimFlow</p>
                 <h2 id="install-swimflow-title" className="mt-2 text-xl font-semibold">Get Live Heat Alerts on Your Lock Screen</h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">Install SwimFlow to receive instant alerts when your swimmer is on deck.</p>
-                {isIOS ? <div className="mt-5 space-y-3 text-sm text-slate-700">
-                    {isIOSInAppViewer ? <div role="alert" className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950"><Compass className="mt-0.5 shrink-0 text-amber-700" size={20} aria-hidden="true" /><div><p className="font-semibold"><AlertTriangle className="mr-1 inline-block align-[-2px]" size={16} aria-hidden="true" />Open in Safari to Enable Alerts</p><p className="mt-1 leading-6">Tap the Compass/Safari icon in the bottom right corner of your screen, then tap Share -&gt; Add to Home Screen.</p></div></div> : null}
-                    <div className="space-y-3 rounded-xl bg-slate-100 p-4"><div className="flex items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-sky-700 shadow-sm"><Share size={17} aria-hidden="true" /></span><p><span className="font-semibold">Step 1:</span> Tap the Share button at the bottom of your screen (square icon with upward arrow).</p></div><div className="flex items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-sky-700 shadow-sm"><Plus size={18} aria-hidden="true" /></span><p><span className="font-semibold">Step 2:</span> Scroll down and select &quot;Add to Home Screen.&quot;</p></div></div>
-                </div> : <div className="mt-5">{deferredInstallPrompt ? <button type="button" onClick={() => void installSwimFlow()} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800">Install App Now</button> : <p className="rounded-xl bg-slate-100 p-4 text-sm leading-6 text-slate-600">{isAndroid ? 'Tap the three dots menu in Chrome, then choose "Add to Home Screen."' : 'Use your browser\'s install option to add SwimFlow to your home screen.'}</p>}</div>}
+                <div className="mt-5">
+                    {isIOS ? (
+                        <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                            <p className="font-semibold text-slate-900">To enable live lock-screen alerts on iPhone:</p>
+                            <ol className="list-inside list-decimal space-y-1">
+                                <li>Tap the <strong>Share</strong> button (square with arrow) at the bottom of Safari.</li>
+                                <li>Scroll down and select <strong>Add to Home Screen</strong>.</li>
+                                <li>Open SwimFlow from your home screen!</li>
+                            </ol>
+                            <p className="pt-1 text-xs text-slate-500">*If opened from Camera QR scan, tap the Safari/Compass icon in the bottom right first.</p>
+                        </div>
+                    ) : (
+                        <button type="button" onClick={handleInstallClick} className="w-full rounded-xl bg-slate-900 py-3 font-medium text-white transition-all hover:bg-slate-800">
+                            Install App Now
+                        </button>
+                    )}
+                </div>
                 {installMessage ? <p aria-live="polite" className="mt-3 text-sm text-slate-600">{installMessage}</p> : null}
                 <button type="button" onClick={() => setShowInstallDrawer(false)} className="mt-5 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">Continue in Browser</button>
             </div>
