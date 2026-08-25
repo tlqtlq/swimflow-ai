@@ -3,6 +3,7 @@ import webpush from 'web-push'
 type StoredPushSubscription = {
     endpoint?: string
     keys?: Record<string, string>
+    trackedSwimmers?: string[] | null
 }
 
 type PushRecipient = {
@@ -20,6 +21,20 @@ type PushNotificationRequest = {
 const vapidSubject = process.env.VAPID_SUBJECT
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY
+
+const normalizeName = (value: string) => value.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim()
+
+const recipientHasTrackedSwimmer = (recipient: PushRecipient, swimmerName?: string) => {
+    const tracked = Array.isArray(recipient.push_subscription?.trackedSwimmers)
+        ? recipient.push_subscription?.trackedSwimmers ?? []
+        : []
+    const target = normalizeName(swimmerName ?? '')
+    if (!target) return false
+    return tracked.some((name) => {
+        const candidate = normalizeName(name)
+        return candidate === target || candidate.includes(target) || target.includes(candidate)
+    })
+}
 
 export async function sendPushNotifications(recipients: PushRecipient[], payload: PushNotificationRequest) {
     if (!vapidSubject || !vapidPublicKey || !vapidPrivateKey) return []
@@ -51,9 +66,33 @@ export async function sendPushNotifications(recipients: PushRecipient[], payload
 }
 
 export async function sendHeatAlertPushes(recipients: PushRecipient[], meetId: string, heatNumber: number) {
-    return sendPushNotifications(recipients, {
+    const trackedRecipients = recipients.filter((recipient) => {
+        const tracked = Array.isArray(recipient.push_subscription?.trackedSwimmers)
+            ? recipient.push_subscription?.trackedSwimmers ?? []
+            : []
+        return tracked.length > 0
+    })
+    return sendPushNotifications(trackedRecipients, {
         title: 'SwimFlow Heat Alert',
         body: `Heat ${heatNumber} is now ON DECK!`,
+        url: `/portal/${meetId}`,
+        icon: '/logo.png',
+    })
+}
+
+export async function sendTrackedSwimmerResultPushes(
+    recipients: PushRecipient[],
+    meetId: string,
+    swimmerName: string,
+    eventName: string,
+    place: number,
+    finalTime: string,
+) {
+    const firstName = swimmerName.split(/\s+/)[0] || swimmerName
+    const matchingRecipients = recipients.filter((recipient) => recipientHasTrackedSwimmer(recipient, swimmerName))
+    return sendPushNotifications(matchingRecipients, {
+        title: `${firstName} got #${place} in the ${eventName}`,
+        body: `Final time: ${finalTime}`,
         url: `/portal/${meetId}`,
         icon: '/logo.png',
     })
