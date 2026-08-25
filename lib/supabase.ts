@@ -1,6 +1,6 @@
+import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
-import { NextRequest } from 'next/server'
 
 // Create a single supabase client for interacting with your database
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -10,7 +10,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Create a Supabase client for server-side operations
 export const createSupabaseServerClient = () => {
-  return createClient(supabaseUrl, supabaseAnonKey)
+  const cookieStore = cookies()
+  return createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value
+      },
+    },
+  })
 }
 
 // Create a Supabase client for admin operations (with service role key)

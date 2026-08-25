@@ -1,8 +1,9 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({ request })
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -11,28 +12,40 @@ export async function middleware(request: NextRequest) {
         get(name: string) {
           return request.cookies.get(name)?.value
         },
+        set(name: string, value: string, options: CookieOptions) {
+          request.cookies.set({ name, value, ...options })
+          response = NextResponse.next({ request })
+          response.cookies.set({ name, value, ...options })
+        },
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set({ name, value: '', ...options })
+          response = NextResponse.next({ request })
+          response.cookies.set({ name, value: '', ...options })
+        },
       },
     }
   )
   
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user } } = await supabase.auth.getUser()
   
   // If user is not authenticated and trying to access protected routes, redirect to login
-  if (!session && 
+  if (!user &&
       (request.nextUrl.pathname.startsWith('/dashboard') ||
        request.nextUrl.pathname.startsWith('/meets/new') ||
        request.nextUrl.pathname.includes('/meets/') && request.nextUrl.pathname.includes('/manage'))) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    return NextResponse.redirect(url)
+    const redirect = NextResponse.redirect(url)
+    response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie))
+    return redirect
   }
   
   // If user is authenticated as a spectator and tries to access protected routes, redirect to home
-  if (session) {
+  if (user) {
     const { data: userProfile, error } = await supabase
       .from('profiles')
       .select('role')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single()
     
     if (!error && userProfile?.role === 'spectator') {
@@ -42,7 +55,9 @@ export async function middleware(request: NextRequest) {
           request.nextUrl.pathname.includes('/meets/') && request.nextUrl.pathname.includes('/manage')) {
         const url = request.nextUrl.clone()
         url.pathname = '/'
-        return NextResponse.redirect(url)
+        const redirect = NextResponse.redirect(url)
+        response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie))
+        return redirect
       }
     }
   }
@@ -52,7 +67,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
   
-  return NextResponse.next()
+  return response
 }
 
 export const config = {

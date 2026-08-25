@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase-browser'
 
 type Role = 'meet_host' | 'coach'
 
@@ -83,8 +83,7 @@ export default function SignupPage() {
         return
       }
 
-      router.push('/dashboard')
-      router.refresh()
+      router.replace('/dashboard')
       return
     }
 

@@ -3,49 +3,21 @@
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useState, type FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase-browser'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
   const [resettingPassword, setResettingPassword] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const router = useRouter()
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data } = await supabase.auth.getUser()
-      if (data.user) router.replace('/dashboard')
-    }
-
-    void checkUser()
-  }, [router])
-
-  async function handleLogin(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(null)
-    setNotice(null)
-    setLoading(true)
-
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    if (signInError) {
-      setError(signInError.message)
-      setLoading(false)
-      return
-    }
-
-    router.push('/dashboard')
-    router.refresh()
-  }
+    const loginError = new URLSearchParams(window.location.search).get('error')
+    if (loginError) setError(loginError)
+  }, [])
 
   async function handlePasswordReset() {
     if (!email) {
@@ -76,7 +48,7 @@ export default function LoginPage() {
           <p className="mt-2 text-sm text-slate-600">Sign in to manage your next meet.</p>
         </div>
 
-        <form className="space-y-5" onSubmit={handleLogin}>
+        <form className="space-y-5" action="/api/auth/login" method="post">
           {error ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</p> : null}
           {notice ? <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">{notice}</p> : null}
 
@@ -92,9 +64,8 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900"
                 placeholder="name@team.org"
-                disabled={loading}
               />
             </div>
           </div>
@@ -105,7 +76,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={handlePasswordReset}
-                disabled={resettingPassword || loading}
+                disabled={resettingPassword}
                 className="text-sm font-medium text-slate-700 underline-offset-4 transition hover:text-slate-950 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {resettingPassword ? 'Sending...' : 'Forgot password?'}
@@ -121,9 +92,8 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-12 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-12 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900"
                 placeholder="Enter your password"
-                disabled={loading}
               />
               <button
                 type="button"
@@ -138,10 +108,9 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-slate-900 py-3 font-medium text-white shadow-md transition-all hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-slate-900 py-3 font-medium text-white shadow-md transition-all hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            Sign in
           </button>
         </form>
 
