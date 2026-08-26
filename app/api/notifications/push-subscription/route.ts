@@ -9,7 +9,13 @@ type PushSubscriptionPayload = {
 
 export async function POST(request: Request) {
     try {
-        const { meetId, subscription, trackedSwimmers } = await request.json() as { meetId?: string; subscription?: PushSubscriptionPayload; trackedSwimmers?: string[] }
+        const { meetId, subscription, trackedSwimmers, heatEnabled, resultEnabled } = await request.json() as {
+            meetId?: string
+            subscription?: PushSubscriptionPayload
+            trackedSwimmers?: string[]
+            heatEnabled?: boolean
+            resultEnabled?: boolean
+        }
         const endpoint = subscription?.endpoint?.trim()
         if (!meetId || !endpoint) {
             return NextResponse.json({ message: 'A meet ID and Push subscription endpoint are required.' }, { status: 400 })
@@ -18,6 +24,8 @@ export async function POST(request: Request) {
         const normalizedTrackedSwimmers = Array.isArray(trackedSwimmers) ? trackedSwimmers.map((name) => String(name).trim()).filter(Boolean) : []
         const persistedSubscription = {
             ...(subscription ?? {}),
+            ...(typeof heatEnabled === 'boolean' ? { heatEnabled } : {}),
+            ...(typeof resultEnabled === 'boolean' ? { resultEnabled } : {}),
             ...(normalizedTrackedSwimmers.length ? { trackedSwimmers: normalizedTrackedSwimmers } : {}),
         }
 

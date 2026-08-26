@@ -10,6 +10,25 @@ const toApplicationServerKey = (value: string) => {
     return Uint8Array.from(raw, (character) => character.charCodeAt(0))
 }
 
+const readNotificationSettings = (meetId: string) => {
+    if (typeof window === 'undefined') {
+        return { heatEnabled: true, heatLeadTime: 'on-deck', resultEnabled: true, trackedSwimmers: [] as string[] }
+    }
+
+    try {
+        const saved = JSON.parse(localStorage.getItem(`swimflow_notification_settings_${meetId}`) ?? 'null') as Partial<{ heatEnabled?: boolean; heatLeadTime?: '2-heats' | 'on-deck'; resultEnabled?: boolean; trackedSwimmers?: string[] }> | null
+        const tracked = saved && Array.isArray(saved.trackedSwimmers) ? saved.trackedSwimmers : []
+        return {
+            heatEnabled: saved?.heatEnabled ?? true,
+            heatLeadTime: saved?.heatLeadTime === '2-heats' ? '2-heats' : 'on-deck',
+            resultEnabled: saved?.resultEnabled ?? true,
+            trackedSwimmers: tracked.map((value) => String(value).trim()).filter(Boolean),
+        }
+    } catch {
+        return { heatEnabled: true, heatLeadTime: 'on-deck', resultEnabled: true, trackedSwimmers: [] as string[] }
+    }
+}
+
 export default function HeatAlertControls({ meetId, tone = 'dark', className, onInstallRequired }: { meetId: string; tone?: 'dark' | 'light'; className?: string; onInstallRequired?: () => void }) {
     const [enabled, setEnabled] = useState(false)
     const [isIOS, setIsIOS] = useState(false)
@@ -45,11 +64,17 @@ export default function HeatAlertControls({ meetId, tone = 'dark', className, on
         }
         if (!subscription) return false
 
-        const trackedSwimmers = JSON.parse(localStorage.getItem(`tracked_swimmers_${meetId}`) ?? '[]') as string[]
+        const settings = readNotificationSettings(meetId)
         const response = await fetch('/api/notifications/push-subscription', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ meetId, subscription: subscription.toJSON(), trackedSwimmers }),
+            body: JSON.stringify({
+                meetId,
+                subscription: subscription.toJSON(),
+                trackedSwimmers: settings.trackedSwimmers,
+                heatEnabled: settings.heatEnabled,
+                resultEnabled: settings.resultEnabled,
+            }),
         })
         return response.ok
     }

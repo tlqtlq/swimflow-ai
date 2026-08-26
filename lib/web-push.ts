@@ -4,6 +4,8 @@ type StoredPushSubscription = {
     endpoint?: string
     keys?: Record<string, string>
     trackedSwimmers?: string[] | null
+    heatEnabled?: boolean
+    resultEnabled?: boolean
 }
 
 type PushRecipient = {
@@ -66,13 +68,11 @@ export async function sendPushNotifications(recipients: PushRecipient[], payload
 }
 
 export async function sendHeatAlertPushes(recipients: PushRecipient[], meetId: string, heatNumber: number) {
-    const trackedRecipients = recipients.filter((recipient) => {
-        const tracked = Array.isArray(recipient.push_subscription?.trackedSwimmers)
-            ? recipient.push_subscription?.trackedSwimmers ?? []
-            : []
-        return tracked.length > 0
+    const activeRecipients = recipients.filter((recipient) => {
+        const subscription = recipient.push_subscription
+        return subscription && subscription.heatEnabled !== false
     })
-    return sendPushNotifications(trackedRecipients, {
+    return sendPushNotifications(activeRecipients, {
         title: 'Heat Alert',
         body: `Heat ${heatNumber} is now ON DECK!`,
         url: `/portal/${meetId}`,
@@ -89,7 +89,11 @@ export async function sendTrackedSwimmerResultPushes(
     finalTime: string,
 ) {
     const firstName = swimmerName.split(/\s+/)[0] || swimmerName
-    const matchingRecipients = recipients.filter((recipient) => recipientHasTrackedSwimmer(recipient, swimmerName))
+    const matchingRecipients = recipients.filter((recipient) => {
+        const subscription = recipient.push_subscription
+        if (!subscription || subscription.resultEnabled === false) return false
+        return recipientHasTrackedSwimmer(recipient, swimmerName)
+    })
     return sendPushNotifications(matchingRecipients, {
         title: `${firstName} got #${place} in the ${eventName}`,
         body: `Final time: ${finalTime}`,
