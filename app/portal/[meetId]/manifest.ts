@@ -6,10 +6,10 @@ export default function manifest({ params }: { params: { meetId: string } }): Me
     return {
         name: 'SwimFlow Live',
         short_name: 'SwimFlow',
-        id: meetRoute,
+        id: 'swimflow-live',
         display: 'standalone',
         start_url: meetRoute,
-        scope: meetRoute,
+        scope: '/',
         background_color: '#ffffff',
         theme_color: '#0f172a',
         icons: [{ src: '/APPICON.jpg', sizes: 'any', type: 'image/jpeg' }],

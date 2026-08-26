@@ -7,10 +7,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
         name: 'SwimFlow Live',
         short_name: 'SwimFlow',
-        id: startUrl,
+        id: 'swimflow-live',
         display: 'standalone',
         start_url: startUrl,
-        scope: startUrl,
+        scope: '/',
         background_color: '#ffffff',
         theme_color: '#0f172a',
         icons: [{ src: '/APPICON.jpg', sizes: 'any', type: 'image/jpeg' }],
