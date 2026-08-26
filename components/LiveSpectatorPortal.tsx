@@ -47,6 +47,23 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
     const latestHeat = useRef(currentHeat)
     const latestDeckEventId = useRef(currentEventId ?? (events[0]?.id ?? ''))
 
+    const filteredRosterMatches = useMemo(() => {
+        const query = swimmerInput.trim().toLowerCase()
+        if (!query) return []
+
+        const seen = new Set<string>()
+        return (rosterEntries ?? [])
+            .map((entry) => entry.swimmer_name)
+            .filter((name): name is string => Boolean(name))
+            .filter((name) => {
+                const normalized = name.toLowerCase()
+                if (seen.has(name)) return false
+                seen.add(name)
+                return normalized.includes(query)
+            })
+            .slice(0, 6)
+    }, [rosterEntries, swimmerInput])
+
     useEffect(() => {
         setTrackedSwimmers(readTrackedSwimmers(meetId))
     }, [meetId])
@@ -241,20 +258,39 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
                         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Track swimmers</p>
                         <span className="text-[10px] font-medium text-slate-500">{trackedSwimmers.length} saved</span>
                     </div>
-                    <div className="flex gap-2">
-                        <input
-                            value={swimmerInput}
-                            onChange={(event) => setSwimmerInput(event.target.value)}
-                            onKeyDown={(event) => {
-                                if (event.key === 'Enter') {
-                                    event.preventDefault()
-                                    addTrackedSwimmer()
-                                }
-                            }}
-                            placeholder="Add swimmer name to track..."
-                            className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
-                        />
-                        <button type="button" onClick={addTrackedSwimmer} className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-white">Add</button>
+                    <div className="relative">
+                        <div className="flex gap-2">
+                            <input
+                                value={swimmerInput}
+                                onChange={(event) => setSwimmerInput(event.target.value)}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter') {
+                                        event.preventDefault()
+                                        addTrackedSwimmer()
+                                    }
+                                }}
+                                placeholder="Add swimmer name to track..."
+                                className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
+                            />
+                            <button type="button" onClick={addTrackedSwimmer} className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-white">Add</button>
+                        </div>
+                        {swimmerInput.trim() && filteredRosterMatches.length > 0 ? (
+                            <div className="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                                {filteredRosterMatches.map((name) => (
+                                    <button
+                                        key={name}
+                                        type="button"
+                                        onMouseDown={(event) => event.preventDefault()}
+                                        onClick={() => {
+                                            setSwimmerInput(name)
+                                        }}
+                                        className="block w-full border-b border-slate-100 px-3 py-2 text-left text-sm text-slate-700 last:border-b-0 hover:bg-slate-50"
+                                    >
+                                        {name}
+                                    </button>
+                                ))}
+                            </div>
+                        ) : null}
                     </div>
                     {trackedSwimmers.length > 0 ? (
                         <div className="mt-3 flex flex-wrap gap-2">

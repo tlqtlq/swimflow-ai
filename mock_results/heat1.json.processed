@@ -1,0 +1,14 @@
+{
+  "meetId": "b8dc103d-d891-4c96-8c1e-e2a7a7a8a833",
+  "eventName": "200 Medley Relay",
+  "heatNumber": 1,
+  "results": [
+    {
+      "lane": 1,
+      "firstName": "Aron",
+      "lastName": "Wolfson",
+      "place": 1,
+      "time": "27.52"
+    }
+  ]
+}
