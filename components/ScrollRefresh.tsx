@@ -52,14 +52,11 @@ export default function ScrollRefresh() {
         }
     }, [isRefreshing, pullDistance, router])
 
-    return (
-        <div aria-live="polite" className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex justify-center" style={{ height: isRefreshing ? 48 : Math.min(pullDistance, 80) }}>
-            <div
-                className="mt-2 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-lg backdrop-blur-sm transition-transform duration-200"
-                style={{ transform: `translateY(${Math.min(pullDistance, 80) - 12}px) rotate(${isRefreshing ? 180 : pullDistance * 1.5}deg)` }}
-            >
-                ↻
-            </div>
-        </div>
-    )
+    useEffect(() => {
+        if (isRefreshing) {
+            router.refresh()
+        }
+    }, [isRefreshing, router])
+
+    return null
 }

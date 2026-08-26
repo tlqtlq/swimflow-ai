@@ -14,7 +14,7 @@ export const metadata: Metadata = {
         title: 'SwimFlow',
     },
     icons: {
-        apple: '/logo.png',
+        apple: '/applogo.jpg',
     },
 }
 
