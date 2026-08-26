@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
     return {
         name: 'SwimFlow Live',
         short_name: 'SwimFlow',
-        id: '/',
+        id: 'swimflow-live',
         display: 'standalone',
         start_url: '/',
         scope: '/',
