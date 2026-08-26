@@ -59,7 +59,7 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
                 const normalized = name.toLowerCase()
                 if (seen.has(name)) return false
                 seen.add(name)
-                return normalized.includes(query)
+                return normalized.startsWith(query)
             })
             .slice(0, 6)
     }, [rosterEntries, swimmerInput])
