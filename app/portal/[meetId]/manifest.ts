@@ -12,6 +12,6 @@ export default function manifest({ params }: { params: { meetId: string } }): Me
         scope: meetRoute,
         background_color: '#ffffff',
         theme_color: '#0f172a',
-        icons: [{ src: '/logo.png', sizes: 'any', type: 'image/png' }],
+        icons: [{ src: '/APPICON.jpg', sizes: 'any', type: 'image/jpeg' }],
     }
 }
