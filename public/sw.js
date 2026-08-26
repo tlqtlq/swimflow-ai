@@ -1,5 +1,5 @@
 const CACHE_NAME = 'swimflow-shell-v5'
-const APP_SHELL = ['/', '/logo.png', '/manifest.webmanifest']
+const APP_SHELL = ['/', '/logom.png', '/manifest.webmanifest']
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -47,7 +47,7 @@ self.addEventListener('fetch', (event) => {
 })
 
 self.addEventListener('push', (event) => {
-    let payload = { title: 'Heat Alert', body: 'A heat is now on deck.', icon: '/logo.png', url: '/' }
+    let payload = { title: 'Heat Alert', body: 'A heat is now on deck.', icon: '/logom.png', url: '/' }
     try {
         payload = { ...payload, ...event.data?.json() }
     } catch {
@@ -57,7 +57,7 @@ self.addEventListener('push', (event) => {
     event.waitUntil(self.registration.showNotification(payload.title, {
         body: payload.body,
         icon: payload.icon,
-        badge: '/logo.png',
+        badge: '/logom.png',
         tag: 'swimflow-heat-alert',
         renotify: true,
         data: { url: payload.url },

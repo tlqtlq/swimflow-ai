@@ -117,7 +117,7 @@ export default function Header() {
       <div className="container flex min-h-16 items-center justify-between gap-4 py-2">
         <div className="flex min-w-0 items-center gap-5">
           <Link href="/" className="flex shrink-0 items-center" aria-label="SwimFlow home">
-            <Image src="/logo.png" alt="SwimFlow.ai Home" width={320} height={64} style={{ width: 'auto' }} className="h-12 w-auto object-contain md:h-14" priority />
+            <Image src="/logom.png" alt="SwimFlow.ai Home" width={320} height={64} style={{ width: 'auto' }} className="h-12 w-auto object-contain md:h-14" priority />
           </Link>
           {user ? (
             <nav className="hidden items-center gap-5 md:flex" aria-label="Application navigation">

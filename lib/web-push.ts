@@ -44,7 +44,7 @@ export async function sendPushNotifications(recipients: PushRecipient[], payload
         const encodedPayload = JSON.stringify({
             title: payload.title,
             body: payload.body,
-            icon: payload.icon ?? '/logo.png',
+            icon: payload.icon ?? '/logom.png',
             url: payload.url,
         })
 
@@ -76,7 +76,7 @@ export async function sendHeatAlertPushes(recipients: PushRecipient[], meetId: s
         title: 'Heat Alert',
         body: `Heat ${heatNumber} is now ON DECK!`,
         url: `/portal/${meetId}`,
-        icon: '/logo.png',
+        icon: '/logom.png',
     })
 }
 
@@ -94,6 +94,6 @@ export async function sendTrackedSwimmerResultPushes(
         title: `${firstName} got #${place} in the ${eventName}`,
         body: `Final time: ${finalTime}`,
         url: `/portal/${meetId}`,
-        icon: '/logo.png',
+        icon: '/logom.png',
     })
 }
