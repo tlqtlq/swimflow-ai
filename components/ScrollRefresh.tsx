@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
+const getScrollTop = () => Math.max(window.pageYOffset || 0, document.documentElement.scrollTop || 0, document.body.scrollTop || 0)
+
 export default function ScrollRefresh() {
     const router = useRouter()
     const touchStartY = useRef<number | null>(null)
@@ -11,15 +13,19 @@ export default function ScrollRefresh() {
 
     useEffect(() => {
         const onTouchStart = (event: TouchEvent) => {
-            if (window.scrollY > 0) return
+            if (getScrollTop() > 0 || isRefreshing) return
             touchStartY.current = event.touches[0]?.clientY ?? null
             setPullDistance(0)
         }
 
         const onTouchMove = (event: TouchEvent) => {
-            if (touchStartY.current === null || window.scrollY > 0 || isRefreshing) return
-            const delta = (event.touches[0]?.clientY ?? touchStartY.current) - touchStartY.current
+            if (touchStartY.current === null || getScrollTop() > 0 || isRefreshing) return
+
+            const currentY = event.touches[0]?.clientY ?? touchStartY.current
+            const delta = currentY - touchStartY.current
+
             if (delta > 0) {
+                event.preventDefault()
                 setPullDistance(Math.min(delta, 120))
             }
         }
@@ -42,7 +48,7 @@ export default function ScrollRefresh() {
         }
 
         window.addEventListener('touchstart', onTouchStart, { passive: true })
-        window.addEventListener('touchmove', onTouchMove, { passive: true })
+        window.addEventListener('touchmove', onTouchMove, { passive: false })
         window.addEventListener('touchend', onTouchEnd, { passive: true })
 
         return () => {

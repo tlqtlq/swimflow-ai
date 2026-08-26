@@ -42,7 +42,7 @@ export async function POST(request: Request) {
             title: 'Result',
             body: `${swimmerName} finished in ${resultTime}.`,
             url: `/portal/${meetId}`,
-            icon: '/logo.png',
+            icon: '/logom.png',
         })
 
         return NextResponse.json({

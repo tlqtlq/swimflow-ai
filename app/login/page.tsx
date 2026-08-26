@@ -43,7 +43,7 @@ export default function LoginPage() {
     <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center bg-gradient-to-br from-slate-50 via-white to-sky-50 px-4 py-12 sm:px-6 lg:px-8">
       <section className="w-full max-w-md rounded-2xl border border-slate-100 bg-white p-8 shadow-xl sm:p-10" aria-labelledby="login-title">
         <div className="mb-8 flex flex-col items-center text-center">
-          <Image src="/logo.png" alt="SwimFlow.ai Logo" width={200} height={40} className="mb-5 h-auto w-auto" priority />
+          <Image src="/logom.png" alt="SwimFlow.ai Logo" width={200} height={40} className="mb-5 h-auto w-auto" priority />
           <h1 id="login-title" className="text-2xl font-semibold text-slate-900">Welcome back to SwimFlow</h1>
           <p className="mt-2 text-sm text-slate-600">Sign in to manage your next meet.</p>
         </div>
