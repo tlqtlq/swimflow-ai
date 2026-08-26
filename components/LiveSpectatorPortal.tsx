@@ -3,20 +3,10 @@
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Menu } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import HeatAlertControls from '@/components/HeatAlertControls'
-
-const getTrackedSwimmersKey = (meetId: string) => `tracked_swimmers_${meetId}`
-
-const readTrackedSwimmers = (meetId: string): string[] => {
-    if (typeof window === 'undefined') return []
-    try {
-        const parsed = JSON.parse(localStorage.getItem(getTrackedSwimmersKey(meetId)) ?? '[]') as string[]
-        return Array.isArray(parsed) ? parsed.map((name) => String(name).trim()).filter(Boolean) : []
-    } catch {
-        return []
-    }
-}
+import PWASidebar from '@/components/PWASidebar'
 
 type EventRow = { id: string; name: string; course?: string | null }
 type Entry = { id: string; event_id: string; lane_number?: number | null; lane?: number | null; swimmer_name?: string | null; team_code?: string | null; heat_number?: number | null; heat?: number | null; seed_time?: string | null; result_time?: string | null; place?: number | null }
@@ -42,49 +32,17 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
     const [activeEventId, setActiveEventId] = useState(currentEventId ?? (events[0]?.id ?? ''))
     const [activeHeat, setActiveHeat] = useState(currentHeat)
     const [course, setCourse] = useState(courseType)
-    const [trackedSwimmers, setTrackedSwimmers] = useState<string[]>([])
-    const [swimmerInput, setSwimmerInput] = useState('')
+    const [sidebarOpen, setSidebarOpen] = useState(false)
     const latestHeat = useRef(currentHeat)
     const latestDeckEventId = useRef(currentEventId ?? (events[0]?.id ?? ''))
 
-    const filteredRosterMatches = useMemo(() => {
-        const query = swimmerInput.trim().toLowerCase()
-        if (!query) return []
-
-        const seen = new Set<string>()
-        return (rosterEntries ?? [])
-            .map((entry) => entry.swimmer_name)
-            .filter((name): name is string => Boolean(name))
-            .filter((name) => {
-                const normalized = name.toLowerCase()
-                if (seen.has(name)) return false
-                seen.add(name)
-                return normalized.startsWith(query)
-            })
-            .slice(0, 6)
-    }, [rosterEntries, swimmerInput])
-
-    useEffect(() => {
-        setTrackedSwimmers(readTrackedSwimmers(meetId))
-    }, [meetId])
-
-    const saveTrackedSwimmers = useCallback((nextList: string[]) => {
-        const normalized = Array.from(new Set(nextList.map((name) => name.trim()).filter(Boolean)))
-        localStorage.setItem(getTrackedSwimmersKey(meetId), JSON.stringify(normalized))
-        setTrackedSwimmers(normalized)
-    }, [meetId])
-
-    const addTrackedSwimmer = useCallback(() => {
-        const trimmed = swimmerInput.trim()
-        if (!trimmed) return
-        const nextList = [...trackedSwimmers, trimmed]
-        saveTrackedSwimmers(nextList)
-        setSwimmerInput('')
-    }, [saveTrackedSwimmers, swimmerInput, trackedSwimmers])
-
-    const removeTrackedSwimmer = useCallback((nameToRemove: string) => {
-        saveTrackedSwimmers(trackedSwimmers.filter((name) => name !== nameToRemove))
-    }, [saveTrackedSwimmers, trackedSwimmers])
+    const rosterNames = useMemo(() => {
+        const uniqueNames = new Set<string>()
+        ;(rosterEntries ?? []).forEach((entry) => {
+            if (entry.swimmer_name) uniqueNames.add(entry.swimmer_name)
+        })
+        return Array.from(uniqueNames).sort((firstName, secondName) => firstName.localeCompare(secondName))
+    }, [rosterEntries])
 
     useEffect(() => {
         setEntries(initialEntries)
@@ -196,6 +154,20 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
 
     return (
         <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-slate-100 shadow-[0_20px_60px_rgba(15,23,42,0.15)]">
+            <PWASidebar meetId={meetId} rosterNames={rosterNames} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-100 px-4 py-3">
+                <button
+                    type="button"
+                    aria-label="Open spectator menu"
+                    onClick={() => setSidebarOpen(true)}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+                >
+                    <Menu size={18} />
+                </button>
+                <div className="h-8 w-18 rounded-full bg-slate-200/80" />
+            </div>
+
             <div className="relative">
                 <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-slate-950/70 to-transparent" />
                 {displayBannerUrl ? (
@@ -253,58 +225,6 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
                     <HeatAlertControls meetId={meetId} tone="light" className="w-full" onInstallRequired={() => undefined} />
                 </div>
 
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Track swimmers</p>
-                        <span className="text-[10px] font-medium text-slate-500">{trackedSwimmers.length} saved</span>
-                    </div>
-                    <div className="relative">
-                        <div className="flex gap-2">
-                            <input
-                                value={swimmerInput}
-                                onChange={(event) => setSwimmerInput(event.target.value)}
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Enter') {
-                                        event.preventDefault()
-                                        addTrackedSwimmer()
-                                    }
-                                }}
-                                placeholder="Add swimmer name to track..."
-                                className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
-                            />
-                            <button type="button" onClick={addTrackedSwimmer} className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-white">Add</button>
-                        </div>
-                        {swimmerInput.trim() && filteredRosterMatches.length > 0 ? (
-                            <div className="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
-                                {filteredRosterMatches.map((name) => (
-                                    <button
-                                        key={name}
-                                        type="button"
-                                        onMouseDown={(event) => event.preventDefault()}
-                                        onClick={() => {
-                                            setSwimmerInput(name)
-                                        }}
-                                        className="block w-full border-b border-slate-100 px-3 py-2 text-left text-sm text-slate-700 last:border-b-0 hover:bg-slate-50"
-                                    >
-                                        {name}
-                                    </button>
-                                ))}
-                            </div>
-                        ) : null}
-                    </div>
-                    {trackedSwimmers.length > 0 ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                            {trackedSwimmers.map((swimmer) => (
-                                <span key={swimmer} className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800">
-                                    {swimmer}
-                                    <button type="button" aria-label={`Remove ${swimmer}`} onClick={() => removeTrackedSwimmer(swimmer)} className="text-sky-700 hover:text-sky-900">✕</button>
-                                </span>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="mt-3 text-xs text-slate-500">No swimmers tracked yet. Add a name to receive personalized result alerts.</p>
-                    )}
-                </div>
             </div>
         </div>
     )
