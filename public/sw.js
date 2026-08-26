@@ -47,7 +47,7 @@ self.addEventListener('fetch', (event) => {
 })
 
 self.addEventListener('push', (event) => {
-    let payload = { title: 'SwimFlow Heat Alert', body: 'A heat is now on deck.', icon: '/logo.png', url: '/' }
+    let payload = { title: 'Heat Alert', body: 'A heat is now on deck.', icon: '/logo.png', url: '/' }
     try {
         payload = { ...payload, ...event.data?.json() }
     } catch {

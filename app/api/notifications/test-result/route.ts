@@ -39,7 +39,7 @@ export async function POST(request: Request) {
         }
 
         const invalidRecipients = await sendPushNotifications(recipientsResult.data ?? [], {
-            title: 'SwimFlow Result',
+            title: 'Result',
             body: `${swimmerName} finished in ${resultTime}.`,
             url: `/portal/${meetId}`,
             icon: '/logo.png',

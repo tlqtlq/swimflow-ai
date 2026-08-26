@@ -73,7 +73,7 @@ export async function sendHeatAlertPushes(recipients: PushRecipient[], meetId: s
         return tracked.length > 0
     })
     return sendPushNotifications(trackedRecipients, {
-        title: 'SwimFlow Heat Alert',
+        title: 'Heat Alert',
         body: `Heat ${heatNumber} is now ON DECK!`,
         url: `/portal/${meetId}`,
         icon: '/logo.png',
