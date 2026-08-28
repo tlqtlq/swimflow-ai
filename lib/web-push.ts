@@ -5,6 +5,7 @@ type StoredPushSubscription = {
     keys?: Record<string, string>
     trackedSwimmers?: string[] | null
     heatEnabled?: boolean
+    heatLeadTime?: 'on-deck' | 1 | 2 | 3 | 4 | 5 | null
     resultEnabled?: boolean
 }
 
@@ -72,11 +73,43 @@ export async function sendHeatAlertPushes(recipients: PushRecipient[], meetId: s
         const subscription = recipient.push_subscription
         return subscription && subscription.heatEnabled !== false
     })
-    return sendPushNotifications(activeRecipients, {
-        title: 'Heat Alert',
-        body: `Heat ${heatNumber} is now ON DECK!`,
-        url: `/portal/${meetId}`,
-        icon: '/logom.png',
+
+    const notifications = activeRecipients.map((recipient) => {
+        const subscription = recipient.push_subscription
+        const leadTime = subscription?.heatLeadTime === 'on-deck' || !subscription?.heatLeadTime ? 0 : Number(subscription.heatLeadTime)
+        const title = 'Heat Alert'
+        const body = leadTime > 0 ? `Heat ${heatNumber + leadTime} is coming up in ${leadTime} heat${leadTime === 1 ? '' : 's'}.` : `Heat ${heatNumber} is now ON DECK!`
+
+        return {
+            id: recipient.id,
+            payload: {
+                title,
+                body,
+                url: `/portal/${meetId}`,
+                icon: '/logom.png',
+            },
+        }
+    })
+
+    if (!notifications.length) return []
+
+    const results = await Promise.allSettled(notifications.map(async ({ id, payload }) => {
+        const recipient = activeRecipients.find((entry) => entry.id === id)
+        if (!recipient || !recipient.push_subscription?.endpoint) return { id, statusCode: 0 }
+        await webpush.sendNotification(recipient.push_subscription as Parameters<typeof webpush.sendNotification>[0], JSON.stringify({
+            title: payload.title,
+            body: payload.body,
+            icon: payload.icon,
+            url: payload.url,
+        }))
+        return { id, statusCode: 0 }
+    }))
+
+    return results.flatMap((result, index) => {
+        if (result.status === 'fulfilled') return []
+        const statusCode = (result.reason as { statusCode?: number }).statusCode
+        const recipientId = notifications[index]?.id
+        return statusCode === 404 || statusCode === 410 ? [recipientId].filter(Boolean) as string[] : []
     })
 }
 
