@@ -28,9 +28,19 @@ const normalizeHeatLeadTime = (value: unknown): HeatLeadTime => {
 const readSettings = (meetId: string): NotificationSettings => {
     if (typeof window === 'undefined') {
         return {
-            heatEnabled: true,
+            heatEnabled: false,
             heatLeadTime: 'on-deck',
-            resultEnabled: true,
+            resultEnabled: false,
+            trackedSwimmers: [],
+        }
+    }
+
+    const permission = 'Notification' in window ? Notification.permission : 'default'
+    if (permission !== 'granted') {
+        return {
+            heatEnabled: false,
+            heatLeadTime: 'on-deck',
+            resultEnabled: false,
             trackedSwimmers: [],
         }
     }
@@ -40,16 +50,16 @@ const readSettings = (meetId: string): NotificationSettings => {
         const trackedList = saved && Array.isArray(saved.trackedSwimmers) ? saved.trackedSwimmers : []
 
         return {
-            heatEnabled: saved?.heatEnabled ?? true,
+            heatEnabled: saved?.heatEnabled ?? false,
             heatLeadTime: normalizeHeatLeadTime(saved?.heatLeadTime ?? 'on-deck'),
-            resultEnabled: saved?.resultEnabled ?? true,
+            resultEnabled: saved?.resultEnabled ?? false,
             trackedSwimmers: trackedList.map((value) => String(value).trim()).filter(Boolean),
         }
     } catch {
         return {
-            heatEnabled: true,
+            heatEnabled: false,
             heatLeadTime: 'on-deck',
-            resultEnabled: true,
+            resultEnabled: false,
             trackedSwimmers: [],
         }
     }
@@ -82,8 +92,9 @@ export default function PWASidebar({ meetId, rosterNames, open, onClose }: { mee
 
     const requestNotifications = async (next: NotificationSettings) => {
         if (typeof window === 'undefined' || !('Notification' in window)) return false
+        if (Notification.permission === 'denied') return false
 
-        const permission = await Notification.requestPermission()
+        const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
         if (permission !== 'granted') return false
 
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false
@@ -229,24 +240,27 @@ export default function PWASidebar({ meetId, rosterNames, open, onClose }: { mee
                                 </div>
 
                                 {settings.heatEnabled ? (
-                                    <div className="mt-4 space-y-2">
-                                        {[1, 2, 3, 4, 5].map((leadTime) => (
-                                            <button
-                                                key={leadTime}
-                                                type="button"
-                                                onClick={() => persist({ ...settings, heatLeadTime: leadTime as 1 | 2 | 3 | 4 | 5 })}
-                                                className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm ${settings.heatLeadTime === leadTime ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
-                                            >
-                                                <span>{leadTime === 1 ? 'Alert me 1 heat before' : `Alert me ${leadTime} heats before`}</span>
-                                            </button>
-                                        ))}
-                                        <button
-                                            type="button"
-                                            onClick={() => persist({ ...settings, heatLeadTime: 'on-deck' })}
-                                            className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm ${settings.heatLeadTime === 'on-deck' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
-                                        >
-                                            <span>Alert on On-Deck</span>
-                                        </button>
+                                    <div className="mt-4 space-y-3">
+                                        <label className="block text-sm text-slate-700">
+                                            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Alert timing</span>
+                                            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                                                <span className="whitespace-nowrap text-sm text-slate-700">Alert me</span>
+                                                <select
+                                                    value={settings.heatLeadTime === 'on-deck' ? 'on-deck' : String(settings.heatLeadTime)}
+                                                    onChange={(event) => {
+                                                        const nextValue = event.target.value
+                                                        persist({ ...settings, heatLeadTime: nextValue === 'on-deck' ? 'on-deck' : (Number(nextValue) as 1 | 2 | 3 | 4 | 5) })
+                                                    }}
+                                                    className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 focus:border-slate-400 focus:outline-none"
+                                                >
+                                                    {[1, 2, 3, 4, 5].map((leadTime) => (
+                                                        <option key={leadTime} value={String(leadTime)}>{leadTime}</option>
+                                                    ))}
+                                                    <option value="on-deck">On Deck</option>
+                                                </select>
+                                                <span className="whitespace-nowrap text-sm text-slate-700">heats before</span>
+                                            </div>
+                                        </label>
                                     </div>
                                 ) : null}
                             </div>
