@@ -33,8 +33,29 @@ export default function Header() {
   const [user, setUser] = useState<User | null>(null)
   const [role, setRole] = useState<ProfileRole | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [isStandaloneApp, setIsStandaloneApp] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const checkStandalone = () => {
+      const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean }
+      setIsStandaloneApp(window.matchMedia('(display-mode: standalone)').matches || Boolean(navigatorWithStandalone.standalone))
+    }
+
+    checkStandalone()
+
+    const mediaQuery = window.matchMedia('(display-mode: standalone)')
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', checkStandalone)
+      return () => mediaQuery.removeEventListener('change', checkStandalone)
+    }
+
+    mediaQuery.addListener(checkStandalone)
+    return () => mediaQuery.removeListener(checkStandalone)
+  }, [])
 
   useEffect(() => {
     let isActive = true
@@ -112,14 +133,18 @@ export default function Header() {
     if (event.key === 'Escape') setMenuOpen(false)
   }
 
+  if (isStandaloneApp) return null
+
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
       <div className="container flex min-h-16 items-center justify-between gap-4 py-2">
         <div className="flex min-w-0 items-center gap-5">
-          <Link href="/" className="flex shrink-0 items-center" aria-label="SwimFlow home">
-            <Image src="/logom.png" alt="SwimFlow.ai Home" width={320} height={64} style={{ width: 'auto' }} className="h-12 w-auto object-contain md:h-14" priority />
-          </Link>
-          {user ? (
+          {!isStandaloneApp ? (
+            <Link href="/" className="flex shrink-0 items-center" aria-label="SwimFlow home">
+              <Image src="/logom.png" alt="SwimFlow.ai Home" width={320} height={64} style={{ width: 'auto' }} className="h-12 w-auto object-contain md:h-14" priority />
+            </Link>
+          ) : null}
+          {user && !isStandaloneApp ? (
             <nav className="hidden items-center gap-5 md:flex" aria-label="Application navigation">
               <Link href="/dashboard" className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900">
                 Dashboard
@@ -188,12 +213,16 @@ export default function Header() {
             </>
           ) : (
             <>
-              <Link href="/login" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50">
-                Log In
-              </Link>
-              <Link href="/signup" className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-800">
-                Sign Up
-              </Link>
+              {!isStandaloneApp ? (
+                <>
+                  <Link href="/login" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50">
+                    Log In
+                  </Link>
+                  <Link href="/signup" className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-800">
+                    Sign Up
+                  </Link>
+                </>
+              ) : null}
             </>
           )}
         </div>
