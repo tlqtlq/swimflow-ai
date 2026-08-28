@@ -178,18 +178,20 @@ export default function LiveSpectatorPortal({ meetId, meetName, meetLocation, me
             {isStandaloneApp ? (
                 <>
                     <PWASidebar meetId={meetId} rosterNames={rosterNames} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-                    <button
-                        type="button"
-                        aria-label="Open spectator menu"
-                        onClick={() => setSidebarOpen(true)}
-                        className="absolute left-4 top-4 z-40 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white/90 text-slate-700 shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-50"
-                    >
-                        <Menu size={18} />
-                    </button>
+                    <div className="absolute left-4 top-4 z-40">
+                        <button
+                            type="button"
+                            aria-label="Open spectator menu"
+                            onClick={() => setSidebarOpen(true)}
+                            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white/90 text-slate-700 shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-50"
+                        >
+                            <Menu size={18} />
+                        </button>
+                    </div>
                 </>
             ) : null}
 
-            <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-slate-100 shadow-[0_20px_60px_rgba(15,23,42,0.15)]">
+            <div className={`overflow-hidden rounded-[28px] border border-slate-200 bg-slate-100 shadow-[0_20px_60px_rgba(15,23,42,0.15)] ${isStandaloneApp ? 'pt-12' : ''}`}>
                 <div className="flex items-center justify-between border-b border-slate-200 bg-slate-100 px-4 py-3">
                     <div className="h-8 w-18 rounded-full bg-slate-200/80" />
                     <div className="h-8 w-18 rounded-full bg-slate-200/80" />
