@@ -10,22 +10,27 @@ const toApplicationServerKey = (value: string) => {
     return Uint8Array.from(raw, (character) => character.charCodeAt(0))
 }
 
+const normalizeHeatLeadTime = (value: unknown) => {
+    if (typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 5) return value as 1 | 2 | 3 | 4 | 5
+    return 'on-deck' as const
+}
+
 const readNotificationSettings = (meetId: string) => {
     if (typeof window === 'undefined') {
-        return { heatEnabled: true, heatLeadTime: 'on-deck', resultEnabled: true, trackedSwimmers: [] as string[] }
+        return { heatEnabled: true, heatLeadTime: 'on-deck' as const, resultEnabled: true, trackedSwimmers: [] as string[] }
     }
 
     try {
-        const saved = JSON.parse(localStorage.getItem(`swimflow_notification_settings_${meetId}`) ?? 'null') as Partial<{ heatEnabled?: boolean; heatLeadTime?: '2-heats' | 'on-deck'; resultEnabled?: boolean; trackedSwimmers?: string[] }> | null
+        const saved = JSON.parse(localStorage.getItem(`swimflow_notification_settings_${meetId}`) ?? 'null') as Partial<{ heatEnabled?: boolean; heatLeadTime?: number | 'on-deck'; resultEnabled?: boolean; trackedSwimmers?: string[] }> | null
         const tracked = saved && Array.isArray(saved.trackedSwimmers) ? saved.trackedSwimmers : []
         return {
             heatEnabled: saved?.heatEnabled ?? true,
-            heatLeadTime: saved?.heatLeadTime === '2-heats' ? '2-heats' : 'on-deck',
+            heatLeadTime: normalizeHeatLeadTime(saved?.heatLeadTime ?? 'on-deck'),
             resultEnabled: saved?.resultEnabled ?? true,
             trackedSwimmers: tracked.map((value) => String(value).trim()).filter(Boolean),
         }
     } catch {
-        return { heatEnabled: true, heatLeadTime: 'on-deck', resultEnabled: true, trackedSwimmers: [] as string[] }
+        return { heatEnabled: true, heatLeadTime: 'on-deck' as const, resultEnabled: true, trackedSwimmers: [] as string[] }
     }
 }
 
@@ -74,6 +79,7 @@ export default function HeatAlertControls({ meetId, tone = 'dark', className, on
                 trackedSwimmers: settings.trackedSwimmers,
                 heatEnabled: settings.heatEnabled,
                 resultEnabled: settings.resultEnabled,
+                heatLeadTime: settings.heatLeadTime,
             }),
         })
         return response.ok

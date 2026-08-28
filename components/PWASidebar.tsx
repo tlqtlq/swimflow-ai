@@ -9,14 +9,21 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
+export type HeatLeadTime = 'on-deck' | 1 | 2 | 3 | 4 | 5
+
 export type NotificationSettings = {
     heatEnabled: boolean
-    heatLeadTime: '2-heats' | 'on-deck'
+    heatLeadTime: HeatLeadTime
     resultEnabled: boolean
     trackedSwimmers: string[]
 }
 
 const notificationKey = (meetId: string) => `swimflow_notification_settings_${meetId}`
+
+const normalizeHeatLeadTime = (value: unknown): HeatLeadTime => {
+    if (typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 5) return value as 1 | 2 | 3 | 4 | 5
+    return 'on-deck'
+}
 
 const readSettings = (meetId: string): NotificationSettings => {
     if (typeof window === 'undefined') {
@@ -34,7 +41,7 @@ const readSettings = (meetId: string): NotificationSettings => {
 
         return {
             heatEnabled: saved?.heatEnabled ?? true,
-            heatLeadTime: saved?.heatLeadTime === '2-heats' ? '2-heats' : 'on-deck',
+            heatLeadTime: normalizeHeatLeadTime(saved?.heatLeadTime ?? 'on-deck'),
             resultEnabled: saved?.resultEnabled ?? true,
             trackedSwimmers: trackedList.map((value) => String(value).trim()).filter(Boolean),
         }
@@ -71,6 +78,72 @@ export default function PWASidebar({ meetId, rosterNames, open, onClose }: { mee
     const persist = (next: NotificationSettings) => {
         setSettings(next)
         localStorage.setItem(notificationKey(meetId), JSON.stringify(next))
+    }
+
+    const requestNotifications = async (next: NotificationSettings) => {
+        if (typeof window === 'undefined' || !('Notification' in window)) return false
+
+        const permission = await Notification.requestPermission()
+        if (permission !== 'granted') return false
+
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false
+
+        const registration = await navigator.serviceWorker.ready
+        let subscription = await registration.pushManager.getSubscription()
+
+        if (!subscription) {
+            const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+            if (!vapidPublicKey) return false
+
+            const padded = `${vapidPublicKey}${'='.repeat((4 - vapidPublicKey.length % 4) % 4)}`.replace(/-/g, '+').replace(/_/g, '/')
+            const raw = window.atob(padded)
+            const applicationServerKey = Uint8Array.from(raw, (character) => character.charCodeAt(0))
+            subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey,
+            })
+        }
+
+        if (!subscription) return false
+
+        const response = await fetch('/api/notifications/push-subscription', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+                meetId,
+                subscription: subscription.toJSON(),
+                trackedSwimmers: next.trackedSwimmers,
+                heatEnabled: next.heatEnabled,
+                resultEnabled: next.resultEnabled,
+                heatLeadTime: next.heatLeadTime,
+            }),
+        })
+
+        return response.ok
+    }
+
+    const enableHeatNotifications = async () => {
+        const next = { ...settings, heatEnabled: !settings.heatEnabled }
+        persist(next)
+
+        if (!next.heatEnabled) return
+
+        const granted = await requestNotifications(next)
+        if (!granted) {
+            persist({ ...next, heatEnabled: false })
+        }
+    }
+
+    const enableResultNotifications = async () => {
+        const next = { ...settings, resultEnabled: !settings.resultEnabled }
+        persist(next)
+
+        if (!next.resultEnabled) return
+
+        const granted = await requestNotifications(next)
+        if (!granted) {
+            persist({ ...next, resultEnabled: false })
+        }
     }
 
     const addTrackedSwimmer = () => {
@@ -148,7 +221,7 @@ export default function PWASidebar({ meetId, rosterNames, open, onClose }: { mee
                                     <button
                                         type="button"
                                         aria-label="Toggle heat notifications"
-                                        onClick={() => persist({ ...settings, heatEnabled: !settings.heatEnabled })}
+                                        onClick={() => void enableHeatNotifications()}
                                         className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${settings.heatEnabled ? 'bg-slate-900' : 'bg-slate-200'}`}
                                     >
                                         <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${settings.heatEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -157,13 +230,16 @@ export default function PWASidebar({ meetId, rosterNames, open, onClose }: { mee
 
                                 {settings.heatEnabled ? (
                                     <div className="mt-4 space-y-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => persist({ ...settings, heatLeadTime: '2-heats' })}
-                                            className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm ${settings.heatLeadTime === '2-heats' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
-                                        >
-                                            <span>Alert me 2 heats before</span>
-                                        </button>
+                                        {[1, 2, 3, 4, 5].map((leadTime) => (
+                                            <button
+                                                key={leadTime}
+                                                type="button"
+                                                onClick={() => persist({ ...settings, heatLeadTime: leadTime as 1 | 2 | 3 | 4 | 5 })}
+                                                className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm ${settings.heatLeadTime === leadTime ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}
+                                            >
+                                                <span>{leadTime === 1 ? 'Alert me 1 heat before' : `Alert me ${leadTime} heats before`}</span>
+                                            </button>
+                                        ))}
                                         <button
                                             type="button"
                                             onClick={() => persist({ ...settings, heatLeadTime: 'on-deck' })}
@@ -183,7 +259,7 @@ export default function PWASidebar({ meetId, rosterNames, open, onClose }: { mee
                                     <button
                                         type="button"
                                         aria-label="Toggle swimmer result notifications"
-                                        onClick={() => persist({ ...settings, resultEnabled: !settings.resultEnabled })}
+                                        onClick={() => void enableResultNotifications()}
                                         className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${settings.resultEnabled ? 'bg-slate-900' : 'bg-slate-200'}`}
                                     >
                                         <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${settings.resultEnabled ? 'translate-x-6' : 'translate-x-1'}`} />

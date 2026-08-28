@@ -5,16 +5,18 @@ type PushSubscriptionPayload = {
     endpoint?: string
     keys?: Record<string, string>
     trackedSwimmers?: string[] | null
+    heatLeadTime?: 'on-deck' | 1 | 2 | 3 | 4 | 5 | null
 }
 
 export async function POST(request: Request) {
     try {
-        const { meetId, subscription, trackedSwimmers, heatEnabled, resultEnabled } = await request.json() as {
+        const { meetId, subscription, trackedSwimmers, heatEnabled, resultEnabled, heatLeadTime } = await request.json() as {
             meetId?: string
             subscription?: PushSubscriptionPayload
             trackedSwimmers?: string[]
             heatEnabled?: boolean
             resultEnabled?: boolean
+            heatLeadTime?: 'on-deck' | 1 | 2 | 3 | 4 | 5 | null
         }
         const endpoint = subscription?.endpoint?.trim()
         if (!meetId || !endpoint) {
@@ -26,6 +28,7 @@ export async function POST(request: Request) {
             ...(subscription ?? {}),
             ...(typeof heatEnabled === 'boolean' ? { heatEnabled } : {}),
             ...(typeof resultEnabled === 'boolean' ? { resultEnabled } : {}),
+            ...(heatLeadTime ? { heatLeadTime } : {}),
             ...(normalizedTrackedSwimmers.length ? { trackedSwimmers: normalizedTrackedSwimmers } : {}),
         }
 
