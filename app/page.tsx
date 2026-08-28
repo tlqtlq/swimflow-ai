@@ -1,7 +1,32 @@
+'use client'
+
 import { ArrowRight, FileSpreadsheet, QrCode, Radio, SlidersHorizontal } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import LandingDeckDemo from '@/components/LandingDeckDemo'
 
 export default function Page() {
+    const [isStandaloneApp, setIsStandaloneApp] = useState(false)
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+
+        const checkStandalone = () => {
+            const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean }
+            setIsStandaloneApp(window.matchMedia('(display-mode: standalone)').matches || Boolean(navigatorWithStandalone.standalone))
+        }
+
+        checkStandalone()
+
+        const mediaQuery = window.matchMedia('(display-mode: standalone)')
+        if (typeof mediaQuery.addEventListener === 'function') {
+            mediaQuery.addEventListener('change', checkStandalone)
+            return () => mediaQuery.removeEventListener('change', checkStandalone)
+        }
+
+        mediaQuery.addListener(checkStandalone)
+        return () => mediaQuery.removeListener(checkStandalone)
+    }, [])
+
     return (
         <div className="space-y-20 pb-10 pt-6 sm:pt-12">
             <section className="grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr]">
@@ -9,7 +34,9 @@ export default function Page() {
                     <p className="text-sm font-semibold uppercase tracking-[0.16em] text-sky-700">Meet operations, simplified</p>
                     <h1 className="mt-5 text-4xl font-semibold leading-tight text-slate-950 sm:text-5xl">Run Flawless Swim Meets in Real-Time</h1>
                     <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600">SwimFlow gives directors one calm command center for rosters, live deck control, and instant spectator access.</p>
-                    <div className="mt-8 flex flex-wrap gap-3"><a href="/api/demo/seed" className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-950/15 transition-colors hover:bg-blue-600">Create Free Meet <ArrowRight size={16} /></a><a href="/dashboard" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100">View Spectator Demo <Radio size={16} /></a></div>
+                    {!isStandaloneApp ? (
+                        <div className="mt-8 flex flex-wrap gap-3"><a href="/api/demo/seed" className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-950/15 transition-colors hover:bg-blue-600">Create Free Meet <ArrowRight size={16} /></a><a href="/dashboard" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100">View Spectator Demo <Radio size={16} /></a></div>
+                    ) : null}
                     <p className="mt-5 text-sm text-slate-500">No hardware, no paper heat sheets, no spectator app download.</p>
                 </div>
                 <LandingDeckDemo />

@@ -97,7 +97,7 @@ export default function PWASidebar({ meetId, rosterNames, open, onClose }: { mee
     return (
         <>
             <div className="fixed inset-0 z-40 bg-slate-950/35" onClick={onClose} />
-            <aside className="fixed inset-y-0 left-0 z-50 w-[65vw] max-w-xs border-r border-slate-200 bg-white shadow-2xl transition-transform duration-200">
+            <aside className="fixed inset-0 z-50 w-full max-w-none border-r border-slate-200 bg-white shadow-2xl transition-transform duration-200">
                 {view === 'main' ? (
                     <div className="flex h-full flex-col">
                         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4">
