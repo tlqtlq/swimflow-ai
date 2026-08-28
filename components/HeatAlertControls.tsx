@@ -100,13 +100,20 @@ export default function HeatAlertControls({ meetId, tone = 'dark', className, on
             return
         }
 
+        if (Notification.permission === 'denied') {
+            setEnabled(false)
+            localStorage.removeItem(storageKey)
+            setMessage('Please enable notifications in settings to work.')
+            return
+        }
+
         setRequesting(true)
         try {
-            const permission = await Notification.requestPermission()
+            const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
             if (permission !== 'granted') {
                 setEnabled(false)
                 localStorage.removeItem(storageKey)
-                setMessage(permission === 'denied' ? 'Notifications are blocked in browser settings. You can try again after changing that setting.' : 'Heat alerts were not enabled. You can try again when ready.')
+                setMessage(permission === 'denied' ? 'Please enable notifications in settings to work.' : 'Heat alerts were not enabled. You can try again when ready.')
                 return
             }
 

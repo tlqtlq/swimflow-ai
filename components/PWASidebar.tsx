@@ -68,6 +68,7 @@ const readSettings = (meetId: string): NotificationSettings => {
 export default function PWASidebar({ meetId, rosterNames, open, onClose }: { meetId: string; rosterNames: string[]; open: boolean; onClose: () => void }) {
     const [view, setView] = useState<'main' | 'notifications'>('main')
     const [settings, setSettings] = useState<NotificationSettings>(() => readSettings(meetId))
+    const [permissionMessage, setPermissionMessage] = useState('')
     const [search, setSearch] = useState('')
 
     const filteredNames = useMemo(() => {
@@ -92,10 +93,19 @@ export default function PWASidebar({ meetId, rosterNames, open, onClose }: { mee
 
     const requestNotifications = async (next: NotificationSettings) => {
         if (typeof window === 'undefined' || !('Notification' in window)) return false
-        if (Notification.permission === 'denied') return false
+
+        if (Notification.permission === 'denied') {
+            setPermissionMessage('Please enable notifications in settings to work.')
+            return false
+        }
 
         const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
-        if (permission !== 'granted') return false
+        if (permission !== 'granted') {
+            setPermissionMessage('Please enable notifications in settings to work.')
+            return false
+        }
+
+        setPermissionMessage('')
 
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false
 
@@ -134,26 +144,46 @@ export default function PWASidebar({ meetId, rosterNames, open, onClose }: { mee
     }
 
     const enableHeatNotifications = async () => {
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'denied') {
+            setPermissionMessage('Please enable notifications in settings to work.')
+            persist({ ...settings, heatEnabled: false })
+            return
+        }
+
         const next = { ...settings, heatEnabled: !settings.heatEnabled }
         persist(next)
 
-        if (!next.heatEnabled) return
+        if (!next.heatEnabled) {
+            setPermissionMessage('')
+            return
+        }
 
         const granted = await requestNotifications(next)
         if (!granted) {
             persist({ ...next, heatEnabled: false })
+            setPermissionMessage('Please enable notifications in settings to work.')
         }
     }
 
     const enableResultNotifications = async () => {
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'denied') {
+            setPermissionMessage('Please enable notifications in settings to work.')
+            persist({ ...settings, resultEnabled: false })
+            return
+        }
+
         const next = { ...settings, resultEnabled: !settings.resultEnabled }
         persist(next)
 
-        if (!next.resultEnabled) return
+        if (!next.resultEnabled) {
+            setPermissionMessage('')
+            return
+        }
 
         const granted = await requestNotifications(next)
         if (!granted) {
             persist({ ...next, resultEnabled: false })
+            setPermissionMessage('Please enable notifications in settings to work.')
         }
     }
 
@@ -253,16 +283,17 @@ export default function PWASidebar({ meetId, rosterNames, open, onClose }: { mee
                                                     }}
                                                     className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 focus:border-slate-400 focus:outline-none"
                                                 >
+                                                    <option value="on-deck">On Deck</option>
                                                     {[1, 2, 3, 4, 5].map((leadTime) => (
                                                         <option key={leadTime} value={String(leadTime)}>{leadTime}</option>
                                                     ))}
-                                                    <option value="on-deck">On Deck</option>
                                                 </select>
                                                 <span className="whitespace-nowrap text-sm text-slate-700">heats before</span>
                                             </div>
                                         </label>
                                     </div>
                                 ) : null}
+                                {permissionMessage ? <p className="mt-3 text-xs font-medium text-red-600">{permissionMessage}</p> : null}
                             </div>
 
                             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
