@@ -72,6 +72,16 @@ public/              # static assets and service worker files
 scripts/             # local tooling and helpers
 ```
 
+## Screenshots
+
+The app is designed to feel polished in both the organizer dashboard and the public meet experience. These screenshots are included in the repository for quick portfolio previews.
+
+![SwimFlow home page](docs/screenshots/home.png)
+
+![SwimFlow dashboard](docs/screenshots/dashboard.png)
+
+![SwimFlow signup flow](docs/screenshots/signup.png)
+
 ## Production checks
 
 ```bash
