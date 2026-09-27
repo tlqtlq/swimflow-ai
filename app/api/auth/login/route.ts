@@ -1,8 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+export const dynamic = 'force-dynamic'
 
 const redirectToLogin = (request: NextRequest, message: string) => {
   const url = new URL('/login', request.url)
@@ -20,6 +19,9 @@ export async function POST(request: NextRequest) {
   }
 
   const response = NextResponse.redirect(new URL('/dashboard', request.url), 303)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://example.supabase.co'
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'demo-anon-key'
+
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       get(name: string) {

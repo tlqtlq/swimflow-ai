@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseAdminClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+
 const STORAGE_BUCKET = 'meet-banners'
 
 export async function POST(request: Request) {
